@@ -1,0 +1,1136 @@
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:prevalencias/core/app_colors.dart';
+import 'package:prevalencias/models/models.dart';
+import 'package:prevalencias/widgets/prevalencias_app_bar.dart';
+import 'new_evaluation_page.dart';
+
+void main() {
+  runApp(const ClinicalAssessmentApp());
+}
+
+final List<StaffMember> staffMembers = [
+  StaffMember(
+    name: 'Elena Rodríguez',
+    unit: 'Unidad de Cuidados Intensivos',
+    role: 'Medico',
+  ),
+  StaffMember(
+    name: 'Gabriel Sanchez',
+    unit: 'Unidad de Cuidados Intensivos',
+    role: 'Tecnico',
+  ),
+  StaffMember(
+    name: 'Roberto Gomez',
+    unit: 'Centro Quirúrgico',
+    role: 'Enfermero',
+  ),
+  StaffMember(
+    name: 'Maria Fernanda',
+    unit: 'Emergencias',
+    role: 'Medico',
+  ),
+  StaffMember(
+    name: 'Carlos Diaz',
+    unit: 'Centro Obstétrico',
+    role: 'Tecnico',
+  ),
+];
+
+final List<ClinicalArea> clinicalAreas = [
+  ClinicalArea(name: 'Unidad de Cuidados Intensivos', location: 'Piso 3, Ala A'),
+  ClinicalArea(name: 'Centro Quirúrgico', location: 'Piso 3, Ala B'),
+  ClinicalArea(name: 'Centro Obstétrico', location: 'Piso 2, Ala C'),
+  ClinicalArea(name: 'Gastroenterología', location: 'Piso 4, Ala A'),
+  ClinicalArea(name: 'Emergencias', location: 'Planta Baja'),
+  ClinicalArea(name: 'Pediatría', location: 'Piso 2, Ala Sur'),
+  ClinicalArea(name: 'Cirugía General', location: 'Piso 4, Ala B'),
+];
+
+final List<FormCategory> _formCategories = [
+  FormCategory(
+    title: 'LAVADO DE MANOS',
+    questions: [
+      Question(
+        id: '1.',
+        text: 'Uñas cortas al borde de las yemas de los dedos y sin esmalte',
+      ),
+      Question(id: '3.', text: 'Apertura de llave de año y humedece manos'),
+      Question(
+        id: '4.',
+        text: 'Deposita una cantidad de suficiente de jabón en las manos',
+      ),
+      Question(
+        id: '5.',
+        text:
+            'Realiza frotado hasta obetener suficiente espuma en superficie de las manos',
+      ),
+      Question(id: '6.', text: 'Realiza el frotado de las palmas entre si'),
+      Question(
+        id: '7.',
+        text:
+            'Realiza el frotado de la palma den mano derecha contra el dorso de la mano izquierda entrelazando los dedos y viceversa',
+      ),
+      Question(
+        id: '8.',
+        text:
+            'Realiza el frotado de la palma de las manos entre si, con los dedos entrelazados',
+      ),
+      Question(
+        id: '9a.',
+        text:
+            'Realiza el frotado de dorso de los dedos, con la mano opuesta, agarrandose los dedos',
+      ),
+      Question(
+        id: '9b.',
+        text:
+            'Realiza el frotado del pulgar izquierdo con un movimiento de rotación, atrapándolo con la palma de la mano derecha y viceversa',
+      ),
+      Question(
+        id: '10.',
+        text:
+            'Realiza el frotado de la punta de los dedos de la mano derecha contra la palma de la mano izquierda haciendo un movimiento de rotacion y viceversa',
+      ),
+      Question(
+        id: '11.',
+        text:
+            'Se enjuaga las manos de la parte distal hacia la proximal con agua a chorro moderado y no las sacude',
+      ),
+      Question(
+        id: '12.',
+        text:
+            'Realiza el secado con papel toalla iniciando de las manos hacia los antebrazos',
+      ),
+      Question(
+        id: '13.',
+        text: 'Cierra la llave del caño utilizando el papel toalla',
+      ),
+      Question(
+        id: '14.',
+        text: 'La técnica empleada duró 60 segundos aproximadamente',
+      ),
+    ],
+  ),
+  FormCategory(
+    title: 'ADMINISTRACION SEGURA DE MEDICAMENTOS',
+    questions: [
+      Question(
+        id: '1.',
+        text:
+            '¿Conoce que existe un Procedimiento de Administración segura de Medicamentos?',
+      ),
+      Question(
+        id: '2.',
+        text: '¿Conoce donde puede encontrar el documento para lectura?',
+      ),
+      Question(id: '3.', text: '¿Conoce los 5 correctos?'),
+      Question(
+        id: '4.',
+        text:
+            '¿Aplica los criterios de verificación antes de dispensar algún producto o administrar medicamento, realizar algún procedimiento o actividad relacionado con el paciente?',
+      ),
+      Question(
+        id: '5.',
+        text: 'Verifica paciente, dosis, via, medicamento, hora correcta.',
+      ),
+      Question(
+        id: '6.',
+        text:
+            '¿Ha recibido capacitación acerca de este procedimiento en los últimos 3 meses?',
+      ),
+      Question(
+        id: '7.',
+        text:
+            'Personal conoce la ruta de notificación en caso de evento adverso relacionado error en la administración de medicamento',
+      ),
+    ],
+  ),
+  FormCategory(
+    title: 'PREVENCION DEL RIESGO DE CAIDA',
+    questions: [
+      Question(
+        id: '1.',
+        text:
+            'El personal conoce la existencia del procedimiento institucional para la prevención del riesgo de caídas',
+      ),
+      Question(
+        id: '2.',
+        text:
+            'El personal conoce donde puede consultar el documento para lectura',
+      ),
+      Question(
+        id: '3.',
+        text:
+            'El personal identifica la herramienta institucional utilizada para valorar el riesgo de caída',
+      ),
+      Question(
+        id: '4.',
+        text:
+            'El personal reconoce las medidas preventivas que deben implementarse según nivel de riesgo identificado:.',
+        subQuestions: [
+          Question(id: '4.1', text: 'Colocación de brazalete amarillo'),
+          Question(id: '4.2', text: 'Elevación de barandas (cuando aplique)'),
+          Question(id: '4.3', text: 'Señalización visible de riesgo'),
+          Question(
+            id: '4.4',
+            text: 'Timbre o medio de llamado al alcance del paciente',
+          ),
+          Question(
+            id: '4.5',
+            text: 'Uso de solla de ruedas o acompañamiento en traslados',
+          ),
+          Question(
+            id: '4.6',
+            text:
+                'Supervisión durante procedimientos diagnósticos or consultas',
+          ),
+        ],
+      ),
+      Question(
+        id: '5.',
+        text:
+            'El personal identifica correctamente el color del brazalete de riesgo de caida',
+      ),
+    ],
+  ),
+  FormCategory(
+    title: 'IDENTIFICACION DEL PACIENTE',
+    questions: [
+      Question(
+        id: '1.',
+        text:
+            'El personal conoce la existencia del procedimiento institucional para la Identificación correcta de paciente',
+      ),
+      Question(
+        id: '2.',
+        text:
+            'El personal conoce donde puede consultar el documento para lectura',
+      ),
+      Question(
+        id: '3.',
+        text:
+            'El personal conoce la herramienta institucional implementada para la identificación correcta del paciente',
+      ),
+      Question(
+        id: '4.',
+        text:
+            'El personal menciona dos datos identificatorios del brazalete de identificación',
+        subQuestions: [
+          Question(id: '4.1', text: 'Nombres y apellidos completos'),
+          Question(id: '4.2', text: 'Número del documento de identidad'),
+          Question(id: '4.3', text: 'Fecha de nacimiento'),
+          Question(id: '4.4', text: 'Sexo'),
+          Question(id: '4.5', text: 'Fecha de ingreso'),
+        ],
+      ),
+      Question(
+        id: '5.',
+        text:
+            'Conoce el procedimiento en caso de error de datos identificatorios',
+      ),
+      Question(id: '6.', text: 'Conoce el procedimiento en caso de homonimia'),
+      Question(
+        id: '7.',
+        text:
+            'El personal reconoce el color del brazalete de identificación de paciente',
+      ),
+      Question(
+        id: '8.',
+        text:
+            'Ha recibido capacitación acerca de este procedimiento en los últimos 3 meses',
+      ),
+      Question(id: '9.', text: 'Paciente porta brazalete de identificación'),
+      Question(
+        id: '10.',
+        text:
+            'Verificación de datos contenidos en el brazalete corresponde a los datos del paciente',
+      ),
+    ],
+  ),
+  FormCategory(
+    title: 'COMUNICACIÓN SEGURA',
+    questions: [
+      Question(
+        id: '1.',
+        text:
+            'El personal conoce la existencia del procedimiento institucional de Comunicación segura',
+      ),
+      Question(
+        id: '2.',
+        text:
+            'El personal conoce donde puede consultar el documento para lectura',
+      ),
+      Question(
+        id: '3.',
+        text:
+            'El personal conoce la herramienta institucional establecida para la transmisión estructurada de información clínica',
+      ),
+      Question(
+        id: '4.',
+        text: 'El personal aplica la metodología SBAR (utiliza la herramienta)',
+      ),
+      Question(
+        id: '5.',
+        text:
+            'El personal define las siglas SBAR (Situación Antecedentes, Evaluación y Recomendaciones)',
+      ),
+      Question(
+        id: '6.',
+        text:
+            'Conoce el procedimiento de comunicación de valores o resultados críticos',
+      ),
+      Question(
+        id: '7.',
+        text:
+            'Ha recibido capacitación acerca de este procedimiento en los últimos 3 meses',
+      ),
+      Question(
+        id: '8.',
+        text:
+            'Se verifica en los registros de la historia clínica el empleo de la técnica SBAR',
+      ),
+      Question(
+        id: '9.',
+        text:
+            'Se verifica que los resultados críticos de laboratorio o imágenes diagnósticas son comunicados oportunamente y queda registro de la notificación.',
+      ),
+    ],
+  ),
+  FormCategory(
+    title: 'PREVENCION DE UPP',
+    questions: [
+      Question(
+        id: '1.',
+        text:
+            'El personal conoce la existencia del procedimiento institucional de Prevención de UPP',
+      ),
+      Question(
+        id: '2.',
+        text:
+            'El personal conoce donde puede consultar el documento para lectura',
+      ),
+      Question(
+        id: '3.',
+        text:
+            'El personal conoce la herramienta institucional establecida para la valoración de riesgo de UPP',
+      ),
+      Question(
+        id: '4.',
+        text:
+            'El personal conoce la frecuencia con la que debe realizarse la escala de valoración de riesgo',
+      ),
+      Question(
+        id: '5.',
+        text: 'El personal identifica los principales factores de riesgo:',
+        subQuestions: [
+          Question(id: '5.1', text: 'Inmovilidad'),
+          Question(id: '5.2', text: 'Humedad'),
+          Question(id: '5.3', text: 'Desnutrición'),
+          Question(id: '5.4', text: 'Fricción / Cizallamiento'),
+          Question(id: '5.5', text: 'Dispositivos médicos'),
+        ],
+      ),
+      Question(
+        id: '6.',
+        text:
+            'El personal reconoce las medidas preventivas según nivel de riesgo',
+        subQuestions: [
+          Question(id: '6.1', text: 'Cambio postural cada 2 horas'),
+          Question(id: '6.2', text: 'Hidratación de la piel'),
+          Question(id: '6.3', text: 'soporte nutricional'),
+          Question(
+            id: '6.4',
+            text:
+                'Dispositivos médicos implementados: colchón antiescara, taloneras, cojines.',
+          ),
+        ],
+      ),
+      Question(
+        id: '7.',
+        text:
+            'Personal conoce la ruta de notificación en caso de evento adverso relacionado a UPP',
+      ),
+      Question(
+        id: '8.',
+        text:
+            'La historia clinica contiene la valoración de riesgo de UPP correctamente llenada',
+      ),
+      Question(
+        id: '9.',
+        text:
+            'Se verifica reevaloración periódica with registro en historia clínica',
+      ),
+      Question(
+        id: '10.',
+        text:
+            'Se realiza cambio de posición con frecuencia establecida y existe registro en historia clínica.',
+      ),
+    ],
+  ),
+];
+
+class ClinicalAssessmentApp extends StatelessWidget {
+  const ClinicalAssessmentApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Prevalencias',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF006578),
+          primary: const Color(0xFF006578),
+          onPrimary: Colors.white,
+          secondary: const Color(0xFF4596AB),
+          onSecondary: Colors.white,
+          error: const Color(0xFFBA1A1A),
+          surface: const Color(0xFFF1F5F9),
+          onSurface: const Color(0xFF0B1C30),
+        ),
+        textTheme: GoogleFonts.interTextTheme(),
+      ),
+      home: const AssessmentFormPage(),
+    );
+  }
+}
+
+class AssessmentFormPage extends StatefulWidget {
+  const AssessmentFormPage({super.key});
+
+  @override
+  State<AssessmentFormPage> createState() => _AssessmentFormPageState();
+}
+
+class _AssessmentFormPageState extends State<AssessmentFormPage> {
+  final Map<String, bool?> _responses = {};
+  final Map<String, String> _observations = {};
+  final TextEditingController _observationsController = TextEditingController();
+  late PageController _staffPageController;
+  late SearchController _searchController;
+  int _currentFormIndex = 0;
+  int _currentStaffIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _staffPageController = PageController();
+    _searchController = SearchController();
+    _syncObservations();
+  }
+
+  @override
+  void dispose() {
+    _observationsController.dispose();
+    _staffPageController.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Safety guard for form index
+    if (_currentFormIndex < 0) _currentFormIndex = 0;
+    if (_currentFormIndex >= _formCategories.length) {
+      _currentFormIndex = _formCategories.length - 1;
+    }
+
+    FormCategory activeForm = _formCategories[_currentFormIndex];
+
+    // Calculate progress for active form
+    int totalQuestions = 0;
+    int answeredCount = 0;
+
+    for (var q in activeForm.questions) {
+      if (q.subQuestions != null) {
+        for (var sq in q.subQuestions!) {
+          totalQuestions++;
+          if (_responses['${_currentStaffIndex}_${_currentFormIndex}_${sq.id}'] !=
+              null) {
+            answeredCount++;
+          }
+        }
+      } else {
+        totalQuestions++;
+        if (_responses['${_currentStaffIndex}_${_currentFormIndex}_${q.id}'] !=
+            null) {
+          answeredCount++;
+        }
+      }
+    }
+
+    double progress = totalQuestions > 0 ? answeredCount / totalQuestions : 0;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF1F5F9),
+      appBar: const PrevalenciasAppBar(),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeroSection(answeredCount, totalQuestions, progress),
+              const SizedBox(height: 32),
+
+              // Form Header with Navigation
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: Text(
+                      activeForm.title,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.2,
+                        color: const Color(0xFF3F484B),
+                      ),
+                    ),
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        icon: const Icon(Icons.chevron_left, size: 20),
+                        color: const Color(0xFF4596AB),
+                        onPressed: _currentFormIndex > 0
+                            ? () {
+                                setState(() {
+                                  if (_currentFormIndex > 0) {
+                                    _currentFormIndex--;
+                                  }
+                                  _syncObservations();
+                                });
+                              }
+                            : null,
+                      ),
+                      Text(
+                        '${_currentFormIndex + 1} / ${_formCategories.length}',
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF4596AB),
+                        ),
+                      ),
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        icon: const Icon(Icons.chevron_right, size: 20),
+                        color: const Color(0xFF4596AB),
+                        onPressed:
+                            _currentFormIndex < _formCategories.length - 1
+                            ? () {
+                                setState(() {
+                                  if (_currentFormIndex <
+                                      _formCategories.length - 1) {
+                                    _currentFormIndex++;
+                                  }
+                                  _syncObservations();
+                                });
+                              }
+                            : null,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Questions
+              ...activeForm.questions
+                  .map((q) => _buildQuestionCard(q))
+                  .toList(),
+
+              _buildObservationsSection(),
+              const SizedBox(height: 48),
+              _buildFinishButton(),
+              const SizedBox(height: 80),
+            ],
+          ),
+        ),
+      ),
+      bottomNavigationBar: _buildBottomNav(),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0),
+      child: SearchAnchor(
+        searchController: _searchController,
+        viewConstraints: BoxConstraints(
+          maxHeight: staffMembers.length * 72.0 + 40,
+        ),
+        builder: (BuildContext context, SearchController controller) {
+          return SearchBar(
+            controller: controller,
+            padding: const WidgetStatePropertyAll<EdgeInsets>(
+              EdgeInsets.symmetric(horizontal: 16.0),
+            ),
+            onTap: () {
+              controller.openView();
+            },
+            onChanged: (_) {
+              controller.openView();
+            },
+            leading: const Icon(Icons.search, color: Color(0xFF006578)),
+            hintText: 'Buscar personal...',
+            hintStyle: WidgetStatePropertyAll<TextStyle>(
+              GoogleFonts.inter(color: Colors.grey),
+            ),
+            elevation: const WidgetStatePropertyAll<double>(0),
+            backgroundColor: const WidgetStatePropertyAll<Color>(Colors.white),
+            shape: WidgetStatePropertyAll<OutlinedBorder>(
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          );
+        },
+        suggestionsBuilder:
+            (BuildContext context, SearchController controller) {
+              final String keyword = controller.value.text.toLowerCase();
+              final List<StaffMember> filteredStaff = staffMembers.where((
+                staff,
+              ) {
+                return staff.name.toLowerCase().contains(keyword);
+              }).toList();
+
+              return filteredStaff.map((staff) {
+                final int index = staffMembers.indexOf(staff);
+                return ListTile(
+                  leading: const CircleAvatar(
+                    backgroundColor: Color(0xFFEFF4FF),
+                    child: Icon(Icons.person, color: Color(0xFF006578)),
+                  ),
+                  title: Text(
+                    staff.name,
+                    style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(
+                    staff.role,
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w300,
+                    ),
+                  ),
+                  onTap: () {
+                    controller.closeView('');
+                    setState(() {
+                      _currentStaffIndex = index;
+                      _staffPageController.animateToPage(
+                        index,
+                        duration: const Duration(milliseconds: 400),
+                        curve: Curves.easeInOut,
+                      );
+                      _syncObservations();
+                    });
+                  },
+                );
+              }).toList();
+            },
+      ),
+    );
+  }
+
+  Widget _buildHeroSection(int answered, int total, double progress) {
+    return Column(
+      children: [
+        _buildSearchBar(),
+        Container(
+          constraints: const BoxConstraints(minHeight: 140),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF006578), Color(0xFF287E93)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF006578).withOpacity(0.4),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Stack(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'EVALUACIÓN ACTIVA',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFAEECFF),
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 2,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Container(
+                          width: 64,
+                          height: 64,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.2),
+                              width: 2,
+                            ),
+                            image: const DecorationImage(
+                              image: NetworkImage(
+                                'https://lh3.googleusercontent.com/aida-public/AB6AXuBT_dHl_sncOsREQfCrnFVNMMVin9BAFIqB2ubsXQ9eU3RWMdDFDGDjBZoEeNreAbQs2tc6aK4KNHamH0DYYs0SEIrfSRbzr2Q41mCVACnAzvK066XZwhGJ2dlAu_qyvUMqI6aVKGAUcGmSVs53gqx-faoPSZAJu5_oTLph1X6L6m7QF9-gt9k0LHJ-90d_WnJNkw8FQBchR8etx705QqAFEECLQ-tQDUqPxRacyqqiITMrY6uYF0GtHrXf9jYONT5F-VHMHByKCw',
+                              ),
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: SizedBox(
+                            height: 85,
+                            child: PageView.builder(
+                              controller: _staffPageController,
+                              key: const PageStorageKey('staff_carousel'),
+                              itemCount: staffMembers.length,
+                              onPageChanged: (index) {
+                                setState(() {
+                                  _currentStaffIndex = index;
+                                  _syncObservations();
+                                });
+                              },
+                              itemBuilder: (context, index) {
+                                final staff = staffMembers[index];
+                                return Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      staff.name,
+                                      style: GoogleFonts.publicSans(
+                                        color: Colors.white,
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      staff.unit,
+                                      style: GoogleFonts.inter(
+                                        color: Colors.white.withOpacity(0.9),
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    Text(
+                                      '• ${staff.role}',
+                                      style: GoogleFonts.inter(
+                                        color: Colors.white.withOpacity(0.7),
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              Positioned(
+                bottom: 12,
+                right: 20,
+                child: Row(
+                  children: List.generate(staffMembers.length, (index) {
+                    return Container(
+                      width: 6,
+                      height: 6,
+                      margin: const EdgeInsets.only(left: 4),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _currentStaffIndex == index
+                            ? Colors.white
+                            : Colors.white.withOpacity(0.3),
+                      ),
+                    );
+                  }),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: const Color(0x26003399),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    Icons.schedule,
+                    size: 14,
+                    color: Color(0xFF003399),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'PROGRESO',
+                    style: GoogleFonts.inter(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF003399),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              RichText(
+                text: TextSpan(
+                  children: [
+                    TextSpan(
+                      text: '$answered ',
+                      style: GoogleFonts.publicSans(
+                        color: const Color(0xFF003399),
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    TextSpan(
+                      text: '/ $total',
+                      style: GoogleFonts.publicSans(
+                        color: const Color(0xff003399).withOpacity(0.5),
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: LinearProgressIndicator(
+                  value: progress,
+                  minHeight: 6,
+                  backgroundColor: Colors.white,
+                  valueColor: const AlwaysStoppedAnimation<Color>(
+                    Color(0xFF4596AB),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuestionCard(Question q) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${q.id} ${q.text}',
+            style: GoogleFonts.inter(
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+              color: const Color(0xFF0B1C30),
+              height: 1.5,
+            ),
+          ),
+          if (q.subQuestions == null) ...[
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(child: _buildResponseButton(q.id, 'Sí', true)),
+                const SizedBox(width: 12),
+                Expanded(child: _buildResponseButton(q.id, 'No', false)),
+              ],
+            ),
+          ] else ...[
+            const SizedBox(height: 20),
+            ...q.subQuestions!
+                .map(
+                  (sq) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '${sq.id} ${sq.text}',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              color: const Color(0xFF3F484B),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        SizedBox(
+                          width: 120,
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: _buildMiniResponseButton(
+                                  sq.id,
+                                  'Sí',
+                                  true,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _buildMiniResponseButton(
+                                  sq.id,
+                                  'No',
+                                  false,
+                                ),
+                              ),
+                            ].toList(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+                .toList(),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildResponseButton(String qId, String label, bool value) {
+    String respKey = '${_currentStaffIndex}_${_currentFormIndex}_$qId';
+    bool isSelected = _responses[respKey] == value;
+    Color activeColor = value
+        ? const Color(0xFF9DE1FD)
+        : const Color(0xFFFFDAD6);
+    Color activeTextColor = value
+        ? const Color(0xFF13657E)
+        : const Color(0xFF93000A);
+    Color activeBorderColor = value
+        ? const Color(0xFF15667F)
+        : const Color(0xFFBA1A1A);
+
+    return GestureDetector(
+      onTap: () => setState(() {
+        if (_responses[respKey] == value) {
+          _responses[respKey] = null;
+        } else {
+          _responses[respKey] = value;
+        }
+      }),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: isSelected ? activeColor : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected ? activeBorderColor : const Color(0xFFDCE9FF),
+            width: 2,
+          ),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            fontWeight: FontWeight.bold,
+            color: isSelected ? activeTextColor : const Color(0xFF3F484B),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMiniResponseButton(String qId, String label, bool value) {
+    String respKey = '${_currentStaffIndex}_${_currentFormIndex}_$qId';
+    bool isSelected = _responses[respKey] == value;
+    Color activeColor = value
+        ? const Color(0xFF9DE1FD)
+        : const Color(0xFFFFDAD6);
+    Color activeTextColor = value
+        ? const Color(0xFF13657E)
+        : const Color(0xFF93000A);
+
+    return GestureDetector(
+      onTap: () => setState(() {
+        if (_responses[respKey] == value) {
+          _responses[respKey] = null;
+        } else {
+          _responses[respKey] = value;
+        }
+      }),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? activeColor : const Color(0xFFF1F5F9),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: isSelected ? activeTextColor : const Color(0xFF3F484B),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildObservationsSection() {
+    return Container(
+      margin: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'OBSERVACIONES ADICIONALES',
+            style: GoogleFonts.inter(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1,
+              color: const Color(0xFF3F484B),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _observationsController,
+            onChanged: (val) {
+              _observations['${_currentStaffIndex}_${_currentFormIndex}'] = val;
+            },
+            maxLines: 4,
+            decoration: InputDecoration(
+              hintText: 'Escriba aquí cualquier observación relevante...',
+              hintStyle: GoogleFonts.inter(
+                color: const Color(0xFF3F484B).withOpacity(0.5),
+                fontSize: 14,
+              ),
+              filled: true,
+              fillColor: const Color(0xFFEFF4FF),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding: const EdgeInsets.all(16),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _syncObservations() {
+    String key = '${_currentStaffIndex}_${_currentFormIndex}';
+    _observationsController.text = _observations[key] ?? '';
+  }
+
+  Widget _buildFinishButton() {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF006578), Color(0xFF287E93)],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF006578).withOpacity(0.2),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: ElevatedButton(
+        onPressed: () {},
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        child: Text(
+          'Finish Evaluation',
+          style: GoogleFonts.publicSans(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomNav() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.9),
+        border: Border(
+          top: BorderSide(color: const Color(0xFFBEC8CC).withOpacity(0.2)),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildNavItem(Icons.dashboard_outlined, 'Dashboard', false, () {}),
+          _buildNavItem(Icons.add_circle, 'New', true, () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const NewEvaluationPage()),
+            );
+          }),
+          _buildNavItem(Icons.assessment_outlined, 'Reports', false, () {}),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNavItem(IconData icon, String label, bool isActive, VoidCallback onTap) {
+    Color color = isActive ? AppColors.primaryBlue : const Color(0xFF3F484B);
+    return InkWell(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: isActive ? 28 : 24),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 10,
+              color: color,
+              fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
