@@ -7,6 +7,7 @@ import 'package:prevalencias/widgets/prevalencias_app_bar.dart';
 import 'new_evaluation_page.dart';
 import 'dashboard_page.dart';
 import 'package:prevalencias/data/app_data.dart';
+import 'package:prevalencias/login_page.dart';
 
 void main() {
   runApp(const ClinicalAssessmentApp());
@@ -357,8 +358,10 @@ class ClinicalAssessmentApp extends StatelessWidget {
         ),
         textTheme: GoogleFonts.interTextTheme(),
       ),
-      home: const NewEvaluationPage(),
+      home: const LoginPage(),
       routes: {
+        '/login': (_) => const LoginPage(),
+        '/home': (_) => const NewEvaluationPage(),
         '/form': (_) => const AssessmentFormPage(),
         '/dashboard': (_) => const DashboardPage(),
       },
@@ -425,27 +428,25 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
 
     FormCategory activeForm = _formCategories[_currentFormIndex];
 
-    // Calculate progress for active form
+    // Calculate compliance for active form
     int totalQuestions = 0;
-    int answeredCount = 0;
+    int compliantCount = 0;
 
     for (var q in activeForm.questions) {
       if (q.subQuestions != null) {
         for (var sq in q.subQuestions!) {
           totalQuestions++;
-          if (EvaluationRepository.instance.getResponse(_currentFormIndex, sq.id) != null) {
-            answeredCount++;
-          }
+          final response = EvaluationRepository.instance.getResponse(_currentFormIndex, sq.id);
+          if (response == true) compliantCount++;
         }
       } else {
         totalQuestions++;
-        if (EvaluationRepository.instance.getResponse(_currentFormIndex, q.id) != null) {
-          answeredCount++;
-        }
+        final response = EvaluationRepository.instance.getResponse(_currentFormIndex, q.id);
+        if (response == true) compliantCount++;
       }
     }
 
-    double progress = totalQuestions > 0 ? answeredCount / totalQuestions : 0;
+    double compliance = totalQuestions > 0 ? compliantCount / totalQuestions : 0;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF1F5F9),
@@ -456,7 +457,7 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildHeroSection(answeredCount, totalQuestions, progress),
+              _buildHeroSection(totalQuestions, compliantCount, compliance),
               const SizedBox(height: 32),
 
               // Form Header with Navigation
@@ -615,7 +616,7 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
 
   // ── HERO SECTION (swipeable carousel + dots) ───────────
 
-  Widget _buildHeroSection(int answered, int total, double progress) {
+  Widget _buildHeroSection(int total, int compliant, double compliance) {
     final area = _session!.area;
     return Column(
       children: [
@@ -741,41 +742,51 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
           ),
         ),
         const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: const Color(0x26003399),
-            borderRadius: BorderRadius.circular(16),
+        _buildComplianceCard(compliant, total, compliance),
+      ],
+    );
+  }
+
+  Widget _buildComplianceCard(int value, int total, double percent) {
+    final color = const Color(0xFF003399);
+    final bgColor = const Color(0x26003399);
+    final barColor = const Color(0xFF4596AB);
+    final percentage = (percent * 100).toInt();
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.check_circle_outline, size: 14, color: color),
+              const SizedBox(width: 8),
+              Text(
+                'CUMPLIMIENTO',
+                style: GoogleFonts.inter(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+            ],
           ),
-          child: Column(
+          const SizedBox(height: 4),
+          Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  const Icon(
-                    Icons.schedule,
-                    size: 14,
-                    color: Color(0xFF003399),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'PROGRESO',
-                    style: GoogleFonts.inter(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF003399),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
               RichText(
                 text: TextSpan(
                   children: [
                     TextSpan(
-                      text: '$answered ',
+                      text: '$value ',
                       style: GoogleFonts.publicSans(
-                        color: const Color(0xFF003399),
+                        color: color,
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
@@ -783,29 +794,35 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
                     TextSpan(
                       text: '/ $total',
                       style: GoogleFonts.publicSans(
-                        color: const Color(0xff003399).withOpacity(0.5),
+                        color: color.withOpacity(0.5),
                         fontSize: 14,
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: LinearProgressIndicator(
-                  value: progress,
-                  minHeight: 6,
-                  backgroundColor: Colors.white,
-                  valueColor: const AlwaysStoppedAnimation<Color>(
-                    Color(0xFF4596AB),
-                  ),
+              Text(
+                '$percentage%',
+                style: GoogleFonts.publicSans(
+                  color: color,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ],
           ),
-        ),
-      ],
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: LinearProgressIndicator(
+              value: percent,
+              minHeight: 6,
+              backgroundColor: Colors.white,
+              valueColor: AlwaysStoppedAnimation<Color>(barColor),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

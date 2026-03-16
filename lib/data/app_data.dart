@@ -19,7 +19,7 @@ const List<ClinicalArea> clinicalAreas = [
 ];
 
 /// Staff por área. IDs: {areaId}_s{N} — garantizan unicidad aunque los nombres sean iguales.
-const Map<String, List<StaffMember>> staffByArea = {
+Map<String, List<StaffMember>> staffByArea = {
   'cx_ext': [
     StaffMember(id: 'cx_ext_s1', name: 'Lorem Ipsum 1', areaId: 'cx_ext', role: 'Médico'),
     StaffMember(id: 'cx_ext_s2', name: 'Lorem Ipsum 2', areaId: 'cx_ext', role: 'Enfermera'),
@@ -121,9 +121,39 @@ const Map<String, List<StaffMember>> staffByArea = {
 };
 
 /// Lista plana de todos los miembros del staff (para el dashboard).
-final List<StaffMember> allStaffMembers =
+List<StaffMember> get allStaffMembers =>
     staffByArea.values.expand((list) => list).toList();
 
 /// Retorna los miembros del staff para un área dada.
 List<StaffMember> getStaffForArea(String areaId) =>
-    staffByArea[areaId] ?? const [];
+    staffByArea[areaId] ?? [];
+
+/// Añade un nuevo miembro a un área específica.
+void addStaffToArea(String areaId, String name, String role) {
+  if (!staffByArea.containsKey(areaId)) {
+    staffByArea[areaId] = [];
+  }
+  final currentLength = staffByArea[areaId]!.length;
+  final newId = '${areaId}_s${currentLength + 1}_${DateTime.now().millisecondsSinceEpoch}';
+  staffByArea[areaId]!.add(
+    StaffMember(id: newId, name: name, areaId: areaId, role: role)
+  );
+}
+
+/// Actualiza los datos (nombre y rol) de un miembro existente.
+void updateStaff(String id, String newName, String newRole) {
+  for (final areaId in staffByArea.keys) {
+    final list = staffByArea[areaId]!;
+    final index = list.indexWhere((s) => s.id == id);
+    if (index != -1) {
+      final oldStaff = list[index];
+      list[index] = StaffMember(
+        id: oldStaff.id, 
+        name: newName, 
+        areaId: oldStaff.areaId, 
+        role: newRole,
+      );
+      break;
+    }
+  }
+}

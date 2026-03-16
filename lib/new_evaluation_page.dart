@@ -508,8 +508,12 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
             mainAxisSpacing: 12,
             childAspectRatio: 0.85,
           ),
-          itemCount: displayStaff.length,
+          itemCount: displayStaff.length + (_staffPage == totalStaffPages - 1 ? 1 : 0), // +1 only on last page
           itemBuilder: (context, index) {
+            if (index == displayStaff.length && _staffPage == totalStaffPages - 1) {
+              return _buildAddStaffCard();
+            }
+
             final staff = displayStaff[index];
             final isSelected = _selectedStaff == staff;
             return Card(
@@ -526,72 +530,223 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
               color: isSelected
                   ? AppColors.main1.withOpacity(0.05)
                   : Colors.white,
-              child: InkWell(
-                onTap: () {
-                  setState(() {
-                    _selectedStaff = staff;
-                  });
-                },
-                borderRadius: BorderRadius.circular(12),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 60,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? AppColors.main1.withOpacity(0.2)
-                              : AppColors.main1.withOpacity(0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.person,
-                          size: 32,
-                          color: isSelected
-                              ? AppColors.primaryBlue
-                              : AppColors.main1,
-                        ),
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: InkWell(
+                      onTap: () {
+                        setState(() {
+                          _selectedStaff = staff;
+                        });
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 60,
+                            height: 60,
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? AppColors.main1.withOpacity(0.2)
+                                  : AppColors.main1.withOpacity(0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.person,
+                              size: 32,
+                              color: isSelected
+                                  ? AppColors.primaryBlue
+                                  : AppColors.main1,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            staff.name,
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.publicSans(
+                              fontWeight: FontWeight.bold,
+                              color: isSelected
+                                  ? AppColors.primaryBlue
+                                  : AppColors.primaryBrown,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            staff.role,
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          if (isSelected) ...[
+                            const SizedBox(height: 8),
+                            const Icon(
+                              Icons.check_circle,
+                              color: AppColors.main1,
+                              size: 20,
+                            ),
+                          ],
+                        ],
                       ),
-                      const SizedBox(height: 12),
-                      Text(
-                        staff.name,
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.publicSans(
-                          fontWeight: FontWeight.bold,
-                          color: isSelected
-                              ? AppColors.primaryBlue
-                              : AppColors.primaryBrown,
-                          fontSize: 14,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        staff.role,
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                      if (isSelected) ...[
-                        const SizedBox(height: 8),
-                        const Icon(
-                          Icons.check_circle,
-                          color: AppColors.main1,
-                          size: 20,
-                        ),
-                      ],
-                    ],
+                    ),
+                  ),           // closes InkWell
+                  ),           // closes Positioned.fill
+                  Positioned(
+                    top: 4,
+                    right: 4,
+                    child: IconButton(
+                      icon: const Icon(Icons.edit, size: 18, color: Colors.grey),
+                      onPressed: () => _showStaffModal(staffToEdit: staff),
+                    ),
                   ),
-                ),
+                ],
               ),
             );
           },
         ),
       ],
+    );
+  }
+
+  Widget _buildAddStaffCard() {
+    return InkWell(
+      onTap: () => _showStaffModal(),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: Colors.grey.withOpacity(0.4),
+            width: 2,
+            style: BorderStyle.none, // Usually custom dash needed, but setting visual cue
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.add, size: 28, color: Colors.grey),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Añadir\nEmpleado',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey.shade600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showStaffModal({StaffMember? staffToEdit}) {
+    if (_selectedUpss == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor selecciona una Unidad de Salud primero')),
+      );
+      return;
+    }
+
+    final isEditing = staffToEdit != null;
+    final nameController = TextEditingController(text: isEditing ? staffToEdit.name : '');
+    final roleController = TextEditingController(text: isEditing ? staffToEdit.role : '');
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(
+            isEditing ? 'Editar Empleado' : 'Añadir Empleado',
+            style: GoogleFonts.publicSans(fontWeight: FontWeight.bold, color: AppColors.primaryBrown),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: InputDecoration(
+                  labelText: 'Nombre Completo',
+                  filled: true,
+                  fillColor: Colors.grey.shade50,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: roleController,
+                decoration: InputDecoration(
+                  labelText: 'Rol (Ej: Médico, Enfermera)',
+                  filled: true,
+                  fillColor: Colors.grey.shade50,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancelar', style: GoogleFonts.inter(color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final name = nameController.text.trim();
+                final role = roleController.text.trim();
+                if (name.isEmpty || role.isEmpty) return;
+
+                setState(() {
+                  if (isEditing) {
+                    updateStaff(staffToEdit.id, name, role);
+                    // Update current selection if editing the selected staff
+                    if (_selectedStaff?.id == staffToEdit.id) {
+                      _selectedStaff = StaffMember(id: staffToEdit.id, name: name, areaId: staffToEdit.areaId, role: role);
+                    }
+                  } else {
+                    addStaffToArea(_selectedUpss!.id, name, role);
+                  }
+                });
+                Navigator.pop(context);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.main1,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: Text(isEditing ? 'Guardar' : 'Añadir', style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
     );
   }
 }
