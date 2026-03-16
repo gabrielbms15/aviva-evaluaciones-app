@@ -3,7 +3,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:prevalencias/core/app_colors.dart';
 import 'package:prevalencias/models/models.dart';
 import 'package:prevalencias/widgets/prevalencias_app_bar.dart';
-import 'main.dart';
+import 'package:prevalencias/data/app_data.dart';
+import 'package:prevalencias/data/evaluation_repository.dart';
+
+
 
 class NewEvaluationPage extends StatefulWidget {
   const NewEvaluationPage({super.key});
@@ -18,13 +21,18 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
 
   ClinicalArea? _selectedUpss;
   StaffMember? _selectedStaff;
-  bool _showAllUpss = false;
-  bool _showAllStaff = false;
+  int _upssPage = 0;
+  int _staffPage = 0;
+
+  static const int _upssPerPage = 3;
+  static const int _staffPerPage = 4;
 
   void _resetSelection() {
     setState(() {
       _selectedUpss = null;
       _selectedStaff = null;
+      _upssPage = 0;
+      _staffPage = 0;
       _upssSearchController.clear();
       _staffSearchController.clear();
     });
@@ -101,7 +109,11 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
             child: ElevatedButton(
               onPressed: (_selectedUpss != null && _selectedStaff != null)
                   ? () {
-                      // Future: Start Evaluation Navigation here
+                      EvaluationRepository.instance.startSession(
+                        _selectedUpss!,
+                        _selectedStaff!,
+                      );
+                      Navigator.pushReplacementNamed(context, '/form');
                     }
                   : null,
               style: ElevatedButton.styleFrom(
@@ -131,13 +143,23 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Iniciar Evaluación',
-          style: GoogleFonts.publicSans(
-            fontSize: 28,
-            fontWeight: FontWeight.w750,
-            color: Color(0xFF000000),
-            letterSpacing: -0.5,
+        RichText(
+          text: TextSpan(
+            style: GoogleFonts.publicSans(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.5,
+            ),
+            children: [
+              const TextSpan(
+                text: 'Iniciar\n',
+                style: TextStyle(color: Colors.black),
+              ),
+              const TextSpan(
+                text: 'Evaluación',
+                style: TextStyle(color: AppColors.main2),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 8),
@@ -160,7 +182,7 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
-            color: AppColors.primaryBlue,
+            color: AppColors.primaryBlue.withOpacity(0.7),
             borderRadius: BorderRadius.circular(6),
           ),
           child: Text(
@@ -184,11 +206,57 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
       ],
     );
   }
+  Widget _buildPaginator({
+    required int currentPage,
+    required int totalPages,
+    required VoidCallback onPrev,
+    required VoidCallback onNext,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        InkWell(
+          onTap: currentPage > 0 ? onPrev : null,
+          borderRadius: BorderRadius.circular(6),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            child: Icon(
+              Icons.chevron_left,
+              size: 20,
+              color: currentPage > 0 ? AppColors.main1 : Colors.grey.shade300,
+            ),
+          ),
+        ),
+        Text(
+          '${currentPage + 1} / $totalPages',
+          style: GoogleFonts.inter(
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: AppColors.main1,
+          ),
+        ),
+        InkWell(
+          onTap: currentPage < totalPages - 1 ? onNext : null,
+          borderRadius: BorderRadius.circular(6),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            child: Icon(
+              Icons.chevron_right,
+              size: 20,
+              color: currentPage < totalPages - 1
+                  ? AppColors.main1
+                  : Colors.grey.shade300,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
   Widget _buildUpssSection() {
-    final displayUpss = _showAllUpss
-        ? clinicalAreas
-        : clinicalAreas.take(3).toList();
+    final totalUpssPages = (clinicalAreas.length / _upssPerPage).ceil();
+    final start = _upssPage * _upssPerPage;
+    final displayUpss = clinicalAreas.skip(start).take(_upssPerPage).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -196,22 +264,13 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _buildSectionHeader('1', 'UPSS / Área Clínica'),
-            if (clinicalAreas.length > 3)
-              TextButton(
-                onPressed: () {
-                  setState(() {
-                    _showAllUpss = !_showAllUpss;
-                  });
-                },
-                child: Text(
-                  _showAllUpss ? 'Ver menos' : 'Ver más +',
-                  style: GoogleFonts.inter(
-                    color: AppColors.main1,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
+            _buildSectionHeader('1', 'Unidad de Salud'),
+            _buildPaginator(
+              currentPage: _upssPage,
+              totalPages: totalUpssPages,
+              onPrev: () => setState(() => _upssPage--),
+              onNext: () => setState(() => _upssPage++),
+            ),
           ],
         ),
         const SizedBox(height: 12),
@@ -269,6 +328,8 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
                       controller.closeView('');
                       setState(() {
                         _selectedUpss = area;
+                        _selectedStaff = null;
+                        _staffPage = 0;
                       });
                     },
                   );
@@ -336,6 +397,8 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
                 onTap: () {
                   setState(() {
                     _selectedUpss = area;
+                    _selectedStaff = null;
+                    _staffPage = 0;
                   });
                 },
               ),
@@ -347,9 +410,16 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
   }
 
   Widget _buildStaffSection() {
-    final displayStaff = _showAllStaff
-        ? staffMembers
-        : staffMembers.take(3).toList();
+    // Only show staff for the selected area; if none selected, empty list.
+    final List<StaffMember> areaStaff = _selectedUpss != null
+        ? getStaffForArea(_selectedUpss!.id)
+        : [];
+
+    final totalStaffPages = areaStaff.isEmpty
+        ? 1
+        : (areaStaff.length / _staffPerPage).ceil();
+    final start = _staffPage * _staffPerPage;
+    final displayStaff = areaStaff.skip(start).take(_staffPerPage).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -358,20 +428,12 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             _buildSectionHeader('2', 'Miembro del staff'),
-            if (staffMembers.length > 3)
-              TextButton(
-                onPressed: () {
-                  setState(() {
-                    _showAllStaff = !_showAllStaff;
-                  });
-                },
-                child: Text(
-                  _showAllStaff ? 'Ver menos' : 'Ver más +',
-                  style: GoogleFonts.inter(
-                    color: AppColors.main1,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+            if (areaStaff.length > _staffPerPage)
+              _buildPaginator(
+                currentPage: _staffPage,
+                totalPages: totalStaffPages,
+                onPrev: () => setState(() => _staffPage--),
+                onNext: () => setState(() => _staffPage++),
               ),
           ],
         ),
@@ -379,7 +441,7 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
         SearchAnchor(
           searchController: _staffSearchController,
           viewConstraints: BoxConstraints(
-            maxHeight: staffMembers.length * 72.0 + 40,
+            maxHeight: areaStaff.length * 72.0 + 40,
           ),
           builder: (BuildContext context, SearchController controller) {
             return SearchBar(
@@ -406,7 +468,7 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
           suggestionsBuilder:
               (BuildContext context, SearchController controller) {
                 final String keyword = controller.value.text.toLowerCase();
-                final List<StaffMember> filteredStaff = staffMembers.where((
+                final List<StaffMember> filteredStaff = areaStaff.where((
                   staff,
                 ) {
                   return staff.name.toLowerCase().contains(keyword);

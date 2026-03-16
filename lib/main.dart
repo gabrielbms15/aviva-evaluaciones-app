@@ -1,51 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:prevalencias/core/app_colors.dart';
+import 'package:prevalencias/data/evaluation_repository.dart';
 import 'package:prevalencias/models/models.dart';
 import 'package:prevalencias/widgets/prevalencias_app_bar.dart';
 import 'new_evaluation_page.dart';
+import 'dashboard_page.dart';
+import 'package:prevalencias/data/app_data.dart';
 
 void main() {
   runApp(const ClinicalAssessmentApp());
 }
 
-final List<StaffMember> staffMembers = [
-  StaffMember(
-    name: 'Elena Rodríguez',
-    unit: 'Unidad de Cuidados Intensivos',
-    role: 'Medico',
-  ),
-  StaffMember(
-    name: 'Gabriel Sanchez',
-    unit: 'Unidad de Cuidados Intensivos',
-    role: 'Tecnico',
-  ),
-  StaffMember(
-    name: 'Roberto Gomez',
-    unit: 'Centro Quirúrgico',
-    role: 'Enfermero',
-  ),
-  StaffMember(
-    name: 'Maria Fernanda',
-    unit: 'Emergencias',
-    role: 'Medico',
-  ),
-  StaffMember(
-    name: 'Carlos Diaz',
-    unit: 'Centro Obstétrico',
-    role: 'Tecnico',
-  ),
-];
-
-final List<ClinicalArea> clinicalAreas = [
-  ClinicalArea(name: 'Unidad de Cuidados Intensivos', location: 'Piso 3, Ala A'),
-  ClinicalArea(name: 'Centro Quirúrgico', location: 'Piso 3, Ala B'),
-  ClinicalArea(name: 'Centro Obstétrico', location: 'Piso 2, Ala C'),
-  ClinicalArea(name: 'Gastroenterología', location: 'Piso 4, Ala A'),
-  ClinicalArea(name: 'Emergencias', location: 'Planta Baja'),
-  ClinicalArea(name: 'Pediatría', location: 'Piso 2, Ala Sur'),
-  ClinicalArea(name: 'Cirugía General', location: 'Piso 4, Ala B'),
-];
 
 final List<FormCategory> _formCategories = [
   FormCategory(
@@ -391,7 +357,11 @@ class ClinicalAssessmentApp extends StatelessWidget {
         ),
         textTheme: GoogleFonts.interTextTheme(),
       ),
-      home: const AssessmentFormPage(),
+      home: const NewEvaluationPage(),
+      routes: {
+        '/form': (_) => const AssessmentFormPage(),
+        '/dashboard': (_) => const DashboardPage(),
+      },
     );
   }
 }
@@ -404,18 +374,28 @@ class AssessmentFormPage extends StatefulWidget {
 }
 
 class _AssessmentFormPageState extends State<AssessmentFormPage> {
-  final Map<String, bool?> _responses = {};
-  final Map<String, String> _observations = {};
+  EvaluationSession? _session;
   final TextEditingController _observationsController = TextEditingController();
   late PageController _staffPageController;
   late SearchController _searchController;
   int _currentFormIndex = 0;
   int _currentStaffIndex = 0;
+  List<StaffMember> _areaStaff = [];
 
   @override
   void initState() {
     super.initState();
-    _staffPageController = PageController();
+    _session = EvaluationRepository.instance.activeSession;
+    if (_session == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) Navigator.pushReplacementNamed(context, '/');
+      });
+      return;
+    }
+    _areaStaff = getStaffForArea(_session!.area.id);
+    _currentStaffIndex = _areaStaff.indexWhere((s) => s.id == _session!.staff.id);
+    if (_currentStaffIndex < 0) _currentStaffIndex = 0;
+    _staffPageController = PageController(initialPage: _currentStaffIndex);
     _searchController = SearchController();
     _syncObservations();
   }
@@ -423,13 +403,20 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
   @override
   void dispose() {
     _observationsController.dispose();
-    _staffPageController.dispose();
-    _searchController.dispose();
+    if (_session != null) {
+      _staffPageController.dispose();
+      _searchController.dispose();
+    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // While redirecting (no session), show a blank scaffold.
+    if (_session == null) {
+      return const Scaffold(body: SizedBox.shrink());
+    }
+
     // Safety guard for form index
     if (_currentFormIndex < 0) _currentFormIndex = 0;
     if (_currentFormIndex >= _formCategories.length) {
@@ -446,15 +433,13 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
       if (q.subQuestions != null) {
         for (var sq in q.subQuestions!) {
           totalQuestions++;
-          if (_responses['${_currentStaffIndex}_${_currentFormIndex}_${sq.id}'] !=
-              null) {
+          if (EvaluationRepository.instance.getResponse(_currentFormIndex, sq.id) != null) {
             answeredCount++;
           }
         }
       } else {
         totalQuestions++;
-        if (_responses['${_currentStaffIndex}_${_currentFormIndex}_${q.id}'] !=
-            null) {
+        if (EvaluationRepository.instance.getResponse(_currentFormIndex, q.id) != null) {
           answeredCount++;
         }
       }
@@ -555,13 +540,15 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
     );
   }
 
+  // ── SEARCH BAR (scoped to area staff) ──────────────────
+
   Widget _buildSearchBar() {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
       child: SearchAnchor(
         searchController: _searchController,
         viewConstraints: BoxConstraints(
-          maxHeight: staffMembers.length * 72.0 + 40,
+          maxHeight: _areaStaff.length * 72.0 + 40,
         ),
         builder: (BuildContext context, SearchController controller) {
           return SearchBar(
@@ -569,14 +556,10 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
             padding: const WidgetStatePropertyAll<EdgeInsets>(
               EdgeInsets.symmetric(horizontal: 16.0),
             ),
-            onTap: () {
-              controller.openView();
-            },
-            onChanged: (_) {
-              controller.openView();
-            },
+            onTap: () => controller.openView(),
+            onChanged: (_) => controller.openView(),
             leading: const Icon(Icons.search, color: Color(0xFF006578)),
-            hintText: 'Buscar personal...',
+            hintText: 'Buscar personal del área...',
             hintStyle: WidgetStatePropertyAll<TextStyle>(
               GoogleFonts.inter(color: Colors.grey),
             ),
@@ -587,53 +570,53 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
             ),
           );
         },
-        suggestionsBuilder:
-            (BuildContext context, SearchController controller) {
-              final String keyword = controller.value.text.toLowerCase();
-              final List<StaffMember> filteredStaff = staffMembers.where((
-                staff,
-              ) {
-                return staff.name.toLowerCase().contains(keyword);
-              }).toList();
-
-              return filteredStaff.map((staff) {
-                final int index = staffMembers.indexOf(staff);
-                return ListTile(
-                  leading: const CircleAvatar(
-                    backgroundColor: Color(0xFFEFF4FF),
-                    child: Icon(Icons.person, color: Color(0xFF006578)),
-                  ),
-                  title: Text(
-                    staff.name,
-                    style: GoogleFonts.inter(fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: Text(
-                    staff.role,
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w300,
-                    ),
-                  ),
-                  onTap: () {
-                    controller.closeView('');
-                    setState(() {
-                      _currentStaffIndex = index;
-                      _staffPageController.animateToPage(
-                        index,
-                        duration: const Duration(milliseconds: 400),
-                        curve: Curves.easeInOut,
-                      );
-                      _syncObservations();
-                    });
-                  },
-                );
-              }).toList();
-            },
+        suggestionsBuilder: (BuildContext context, SearchController controller) {
+          final keyword = controller.value.text.toLowerCase();
+          final filtered = _areaStaff
+              .where((s) => s.name.toLowerCase().contains(keyword))
+              .toList();
+          return filtered.map((staff) {
+            final idx = _areaStaff.indexOf(staff);
+            return ListTile(
+              leading: const CircleAvatar(
+                backgroundColor: Color(0xFFEFF4FF),
+                child: Icon(Icons.person, color: Color(0xFF006578)),
+              ),
+              title: Text(staff.name, style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+              subtitle: Text(staff.role, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w300)),
+              onTap: () {
+                controller.closeView('');
+                _switchToStaff(idx);
+              },
+            );
+          }).toList();
+        },
       ),
     );
   }
 
+  void _switchToStaff(int index) {
+    setState(() {
+      _currentStaffIndex = index;
+      // Update the active session to reflect the newly selected staff
+      EvaluationRepository.instance.startSession(
+        _session!.area,
+        _areaStaff[index],
+      );
+      _session = EvaluationRepository.instance.activeSession;
+      _staffPageController.animateToPage(
+        index,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOut,
+      );
+      _syncObservations();
+    });
+  }
+
+  // ── HERO SECTION (swipeable carousel + dots) ───────────
+
   Widget _buildHeroSection(int answered, int total, double progress) {
+    final area = _session!.area;
     return Column(
       children: [
         _buildSearchBar(),
@@ -674,21 +657,17 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
                     Row(
                       children: [
                         Container(
-                          width: 64,
-                          height: 64,
+                          width: 56,
+                          height: 56,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
+                            color: Colors.white.withOpacity(0.15),
                             border: Border.all(
-                              color: Colors.white.withOpacity(0.2),
+                              color: Colors.white.withOpacity(0.3),
                               width: 2,
                             ),
-                            image: const DecorationImage(
-                              image: NetworkImage(
-                                'https://lh3.googleusercontent.com/aida-public/AB6AXuBT_dHl_sncOsREQfCrnFVNMMVin9BAFIqB2ubsXQ9eU3RWMdDFDGDjBZoEeNreAbQs2tc6aK4KNHamH0DYYs0SEIrfSRbzr2Q41mCVACnAzvK066XZwhGJ2dlAu_qyvUMqI6aVKGAUcGmSVs53gqx-faoPSZAJu5_oTLph1X6L6m7QF9-gt9k0LHJ-90d_WnJNkw8FQBchR8etx705QqAFEECLQ-tQDUqPxRacyqqiITMrY6uYF0GtHrXf9jYONT5F-VHMHByKCw',
-                              ),
-                              fit: BoxFit.cover,
-                            ),
                           ),
+                          child: const Icon(Icons.person, color: Colors.white, size: 30),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
@@ -697,15 +676,10 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
                             child: PageView.builder(
                               controller: _staffPageController,
                               key: const PageStorageKey('staff_carousel'),
-                              itemCount: staffMembers.length,
-                              onPageChanged: (index) {
-                                setState(() {
-                                  _currentStaffIndex = index;
-                                  _syncObservations();
-                                });
-                              },
+                              itemCount: _areaStaff.length,
+                              onPageChanged: (index) => _switchToStaff(index),
                               itemBuilder: (context, index) {
-                                final staff = staffMembers[index];
+                                final staff = _areaStaff[index];
                                 return Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -720,7 +694,7 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
-                                      staff.unit,
+                                      area.name,
                                       style: GoogleFonts.inter(
                                         color: Colors.white.withOpacity(0.9),
                                         fontSize: 12,
@@ -748,7 +722,7 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
                 bottom: 12,
                 right: 20,
                 child: Row(
-                  children: List.generate(staffMembers.length, (index) {
+                  children: List.generate(_areaStaff.length, (index) {
                     return Container(
                       width: 6,
                       height: 6,
@@ -916,8 +890,7 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
   }
 
   Widget _buildResponseButton(String qId, String label, bool value) {
-    String respKey = '${_currentStaffIndex}_${_currentFormIndex}_$qId';
-    bool isSelected = _responses[respKey] == value;
+    bool isSelected = EvaluationRepository.instance.getResponse(_currentFormIndex, qId) == value;
     Color activeColor = value
         ? const Color(0xFF9DE1FD)
         : const Color(0xFFFFDAD6);
@@ -930,11 +903,8 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
 
     return GestureDetector(
       onTap: () => setState(() {
-        if (_responses[respKey] == value) {
-          _responses[respKey] = null;
-        } else {
-          _responses[respKey] = value;
-        }
+        final cur = EvaluationRepository.instance.getResponse(_currentFormIndex, qId);
+        EvaluationRepository.instance.saveResponse(_currentFormIndex, qId, cur == value ? null : value);
       }),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
@@ -960,8 +930,7 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
   }
 
   Widget _buildMiniResponseButton(String qId, String label, bool value) {
-    String respKey = '${_currentStaffIndex}_${_currentFormIndex}_$qId';
-    bool isSelected = _responses[respKey] == value;
+    bool isSelected = EvaluationRepository.instance.getResponse(_currentFormIndex, qId) == value;
     Color activeColor = value
         ? const Color(0xFF9DE1FD)
         : const Color(0xFFFFDAD6);
@@ -971,11 +940,8 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
 
     return GestureDetector(
       onTap: () => setState(() {
-        if (_responses[respKey] == value) {
-          _responses[respKey] = null;
-        } else {
-          _responses[respKey] = value;
-        }
+        final cur = EvaluationRepository.instance.getResponse(_currentFormIndex, qId);
+        EvaluationRepository.instance.saveResponse(_currentFormIndex, qId, cur == value ? null : value);
       }),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
@@ -1021,7 +987,7 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
           TextField(
             controller: _observationsController,
             onChanged: (val) {
-              _observations['${_currentStaffIndex}_${_currentFormIndex}'] = val;
+              EvaluationRepository.instance.saveObservation(_currentFormIndex, val);
             },
             maxLines: 4,
             decoration: InputDecoration(
@@ -1045,8 +1011,8 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
   }
 
   void _syncObservations() {
-    String key = '${_currentStaffIndex}_${_currentFormIndex}';
-    _observationsController.text = _observations[key] ?? '';
+    _observationsController.text =
+        EvaluationRepository.instance.getObservation(_currentFormIndex);
   }
 
   Widget _buildFinishButton() {
@@ -1099,7 +1065,9 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildNavItem(Icons.dashboard_outlined, 'Dashboard', false, () {}),
+          _buildNavItem(Icons.dashboard_outlined, 'Dashboard', false, () {
+            Navigator.pushNamed(context, '/dashboard');
+          }),
           _buildNavItem(Icons.add_circle, 'New', true, () {
             Navigator.push(
               context,
