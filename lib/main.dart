@@ -395,7 +395,7 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
       });
       return;
     }
-    _areaStaff = getStaffForArea(_session!.area.id);
+    _areaStaff = getStaffForArea(_session!.sede.id, _session!.area.id);
     _currentStaffIndex = _areaStaff.indexWhere((s) => s.id == _session!.staff.id);
     if (_currentStaffIndex < 0) _currentStaffIndex = 0;
     _staffPageController = PageController(initialPage: _currentStaffIndex);
@@ -601,6 +601,7 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
       _currentStaffIndex = index;
       // Update the active session to reflect the newly selected staff
       EvaluationRepository.instance.startSession(
+        _session!.sede,
         _session!.area,
         _areaStaff[index],
       );

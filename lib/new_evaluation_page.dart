@@ -19,6 +19,7 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
   final SearchController _upssSearchController = SearchController();
   final SearchController _staffSearchController = SearchController();
 
+  Sede? _selectedSede;
   ClinicalArea? _selectedUpss;
   StaffMember? _selectedStaff;
   int _upssPage = 0;
@@ -29,6 +30,7 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
 
   void _resetSelection() {
     setState(() {
+      _selectedSede = null;
       _selectedUpss = null;
       _selectedStaff = null;
       _upssPage = 0;
@@ -42,12 +44,7 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF1F5F9),
-      appBar: PrevalenciasAppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
+      appBar: const PrevalenciasAppBar(),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Column(
@@ -55,9 +52,15 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
           children: [
             _buildHeader(),
             const SizedBox(height: 32),
-            _buildUpssSection(),
-            const SizedBox(height: 32),
-            _buildStaffSection(),
+            _buildSedeSection(),
+            if (_selectedSede != null) ...[
+              const SizedBox(height: 32),
+              _buildUpssSection(),
+            ],
+            if (_selectedSede != null && _selectedUpss != null) ...[
+              const SizedBox(height: 32),
+              _buildStaffSection(),
+            ],
             const SizedBox(height: 48),
             _buildActionButtons(),
             const SizedBox(height: 40),
@@ -107,9 +110,10 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
               ],
             ),
             child: ElevatedButton(
-              onPressed: (_selectedUpss != null && _selectedStaff != null)
+              onPressed: (_selectedSede != null && _selectedUpss != null && _selectedStaff != null)
                   ? () {
                       EvaluationRepository.instance.startSession(
+                        _selectedSede!,
                         _selectedUpss!,
                         _selectedStaff!,
                       );
@@ -253,6 +257,84 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
     );
   }
 
+  Widget _buildSedeSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader('1', 'Sede'),
+        const SizedBox(height: 16),
+        Row(
+          children: sedes.map((sede) {
+            final isSelected = _selectedSede == sede;
+            return Expanded(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  right: sede == sedes.first ? 8.0 : 0.0,
+                  left: sede == sedes.last ? 8.0 : 0.0,
+                ),
+                child: InkWell(
+                  onTap: () {
+                    setState(() {
+                      if (_selectedSede != sede) {
+                        _selectedSede = sede;
+                        _selectedUpss = null; // Reset dependants
+                        _selectedStaff = null;
+                        _upssPage = 0;
+                        _staffPage = 0;
+                      }
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: isSelected ? AppColors.main1.withOpacity(0.05) : Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isSelected ? AppColors.main1 : Colors.grey.withOpacity(0.2),
+                        width: isSelected ? 2 : 1,
+                      ),
+                      boxShadow: isSelected
+                          ? [BoxShadow(color: AppColors.main1.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 4))]
+                          : [],
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Image.asset(
+                          sede.imagePath,
+                          height: 100,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            height: 100,
+                            color: Colors.grey[200],
+                            child: const Icon(Icons.image_not_supported, color: Colors.grey),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(12.0),
+                          child: Text(
+                            sede.name,
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.publicSans(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: isSelected ? AppColors.primaryBlue : AppColors.primaryBrown,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
   Widget _buildUpssSection() {
     final totalUpssPages = (clinicalAreas.length / _upssPerPage).ceil();
     final start = _upssPage * _upssPerPage;
@@ -264,7 +346,7 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _buildSectionHeader('1', 'Unidad de Salud'),
+            _buildSectionHeader('2', 'Unidad de Salud'),
             _buildPaginator(
               currentPage: _upssPage,
               totalPages: totalUpssPages,
@@ -411,8 +493,8 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
 
   Widget _buildStaffSection() {
     // Only show staff for the selected area; if none selected, empty list.
-    final List<StaffMember> areaStaff = _selectedUpss != null
-        ? getStaffForArea(_selectedUpss!.id)
+    final List<StaffMember> areaStaff = (_selectedSede != null && _selectedUpss != null)
+        ? getStaffForArea(_selectedSede!.id, _selectedUpss!.id)
         : [];
 
     final totalStaffPages = areaStaff.isEmpty
@@ -427,7 +509,7 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _buildSectionHeader('2', 'Miembro del staff'),
+            _buildSectionHeader('3', 'Miembro del staff'),
             if (areaStaff.length > _staffPerPage)
               _buildPaginator(
                 currentPage: _staffPage,
@@ -730,10 +812,10 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
                     updateStaff(staffToEdit.id, name, role);
                     // Update current selection if editing the selected staff
                     if (_selectedStaff?.id == staffToEdit.id) {
-                      _selectedStaff = StaffMember(id: staffToEdit.id, name: name, areaId: staffToEdit.areaId, role: role);
+                      _selectedStaff = StaffMember(id: staffToEdit.id, name: name, sedeId: staffToEdit.sedeId, areaId: staffToEdit.areaId, role: role);
                     }
                   } else {
-                    addStaffToArea(_selectedUpss!.id, name, role);
+                    addStaffToArea(_selectedSede!.id, _selectedUpss!.id, name, role);
                   }
                 });
                 Navigator.pop(context);

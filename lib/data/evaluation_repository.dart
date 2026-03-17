@@ -15,8 +15,8 @@ class EvaluationRepository {
   EvaluationSession? get activeSession => _activeSession;
 
   /// Starts a new session. Replaces any existing active session.
-  void startSession(ClinicalArea area, StaffMember staff) {
-    _activeSession = EvaluationSession(area: area, staff: staff);
+  void startSession(Sede sede, ClinicalArea area, StaffMember staff) {
+    _activeSession = EvaluationSession(sede: sede, area: area, staff: staff);
   }
 
   /// Saves a response for a question in the active session.

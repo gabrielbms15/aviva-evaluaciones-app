@@ -1,3 +1,27 @@
+class Sede {
+  final String id;
+  final String name;
+  final String imagePath;
+
+  const Sede({
+    required this.id,
+    required this.name,
+    required this.imagePath,
+  });
+
+  factory Sede.fromJson(Map<String, dynamic> json) => Sede(
+        id: json['id'] as String,
+        name: json['name'] as String,
+        imagePath: json['imagePath'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'imagePath': imagePath,
+      };
+}
+
 class ClinicalArea {
   final String id;
   final String name;
@@ -37,12 +61,14 @@ class Question {
 class StaffMember {
   final String id;
   final String name;
+  final String sedeId;
   final String areaId;
   final String role;
 
   const StaffMember({
     required this.id,
     required this.name,
+    required this.sedeId,
     required this.areaId,
     required this.role,
   });
@@ -53,6 +79,7 @@ class StaffMember {
   factory StaffMember.fromJson(Map<String, dynamic> json) => StaffMember(
         id: json['id'] as String,
         name: json['name'] as String,
+        sedeId: json['sedeId'] as String,
         areaId: json['areaId'] as String,
         role: json['role'] as String,
       );
@@ -60,6 +87,7 @@ class StaffMember {
   Map<String, dynamic> toJson() => {
         'id': id,
         'name': name,
+        'sedeId': sedeId,
         'areaId': areaId,
         'role': role,
       };
@@ -74,9 +102,9 @@ class FormCategory {
 
 /// Represents a single evaluation session for one staff member in one area.
 ///
-/// Key format: eval_{areaId}_{staffId}_{date}
-/// Example:    eval_cx_quir_staff_003_2026-03-13
+/// Key format: eval_{sedeId}_{areaId}_{staffId}_{date}
 class EvaluationSession {
+  final Sede sede;
   final ClinicalArea area;
   final StaffMember staff;
   final DateTime startedAt;
@@ -88,6 +116,7 @@ class EvaluationSession {
   final Map<String, String> observations;
 
   EvaluationSession({
+    required this.sede,
     required this.area,
     required this.staff,
     DateTime? startedAt,
@@ -100,6 +129,6 @@ class EvaluationSession {
   /// Unique, collision-safe key for persistence.
   String get sessionKey {
     final date = startedAt.toIso8601String().substring(0, 10);
-    return 'eval_${area.id}_${staff.id}_$date';
+    return 'eval_${sede.id}_${area.id}_${staff.id}_$date';
   }
 }
