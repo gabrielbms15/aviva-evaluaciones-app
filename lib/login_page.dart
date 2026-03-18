@@ -64,9 +64,13 @@ class _LoginPageState extends State<LoginPage> {
                   // Logo
                   Image.asset(
                     'assets/logo.png',
-                    height: 120,
+                    height: MediaQuery.of(context).size.height * 0.09,
                     errorBuilder: (context, error, stackTrace) {
-                      return const Icon(Icons.health_and_safety, size: 80, color: AppColors.main1);
+                      return Icon(
+                        Icons.health_and_safety,
+                        size: MediaQuery.of(context).size.height * 0.1,
+                        color: AppColors.main1,
+                      );
                     },
                   ),
                   const SizedBox(height: 50),
@@ -82,7 +86,9 @@ class _LoginPageState extends State<LoginPage> {
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.15),
                           borderRadius: BorderRadius.circular(24),
-                          border: Border.all(color: Colors.white.withOpacity(0.4)),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.4),
+                          ),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -99,7 +105,11 @@ class _LoginPageState extends State<LoginPage> {
                             TextField(
                               controller: _userController,
                               decoration: InputDecoration(
-                                prefixIcon: const Icon(Icons.person_outline, size: 20, color: AppColors.main1),
+                                prefixIcon: const Icon(
+                                  Icons.person_outline,
+                                  size: 20,
+                                  color: AppColors.main1,
+                                ),
                                 filled: true,
                                 fillColor: Colors.white,
                                 border: OutlineInputBorder(
@@ -122,7 +132,11 @@ class _LoginPageState extends State<LoginPage> {
                               controller: _passwordController,
                               obscureText: true,
                               decoration: InputDecoration(
-                                prefixIcon: const Icon(Icons.lock_outline, size: 20, color: AppColors.main1),
+                                prefixIcon: const Icon(
+                                  Icons.lock_outline,
+                                  size: 20,
+                                  color: AppColors.main1,
+                                ),
                                 filled: true,
                                 fillColor: Colors.white,
                                 border: OutlineInputBorder(
@@ -141,7 +155,9 @@ class _LoginPageState extends State<LoginPage> {
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppColors.main1,
                                   foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 18),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 18,
+                                  ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
@@ -162,7 +178,9 @@ class _LoginPageState extends State<LoginPage> {
                               child: TextButton(
                                 onPressed: _handleCancel,
                                 style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                  ),
                                 ),
                                 child: Text(
                                   'Cancelar',

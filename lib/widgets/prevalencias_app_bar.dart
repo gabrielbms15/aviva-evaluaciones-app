@@ -16,9 +16,18 @@ class PrevalenciasAppBar extends StatelessWidget
   @override
   Widget build(BuildContext context) {
     return AppBar(
-      backgroundColor: AppColors.main2,
+      backgroundColor: Colors.transparent,
       elevation: 0,
       scrolledUnderElevation: 2,
+      flexibleSpace: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: [AppColors.headerColor5, AppColors.headerColor1],
+          ),
+        ),
+      ),
       leading:
           leading ??
           IconButton(

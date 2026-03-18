@@ -5,8 +5,7 @@ import 'package:prevalencias/models/models.dart';
 import 'package:prevalencias/widgets/prevalencias_app_bar.dart';
 import 'package:prevalencias/data/app_data.dart';
 import 'package:prevalencias/data/evaluation_repository.dart';
-
-
+import 'dart:ui';
 
 class NewEvaluationPage extends StatefulWidget {
   const NewEvaluationPage({super.key});
@@ -43,29 +42,51 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF1F5F9),
+      extendBodyBehindAppBar: true,
       appBar: const PrevalenciasAppBar(),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(),
-            const SizedBox(height: 32),
-            _buildSedeSection(),
-            if (_selectedSede != null) ...[
-              const SizedBox(height: 32),
-              _buildUpssSection(),
-            ],
-            if (_selectedSede != null && _selectedUpss != null) ...[
-              const SizedBox(height: 32),
-              _buildStaffSection(),
-            ],
-            const SizedBox(height: 48),
-            _buildActionButtons(),
-            const SizedBox(height: 40),
-          ],
-        ),
+      body: Stack(
+        children: [
+          // Background Gradient (Same as LoginPage)
+          Container(
+            width: double.infinity,
+            height: double.infinity,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppColors.main1.withOpacity(0.15),
+                  AppColors.main2.withOpacity(0.1),
+                  Colors.white,
+                ],
+              ),
+            ),
+          ),
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeader(),
+                  const SizedBox(height: 32),
+                  _buildSedeSection(),
+                  if (_selectedSede != null) ...[
+                    const SizedBox(height: 32),
+                    _buildUpssSection(),
+                  ],
+                  if (_selectedSede != null && _selectedUpss != null) ...[
+                    const SizedBox(height: 32),
+                    _buildStaffSection(),
+                  ],
+                  const SizedBox(height: 48),
+                  _buildActionButtons(),
+                  const SizedBox(height: 40),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -97,20 +118,21 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
         Expanded(
           child: Container(
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [AppColors.primaryBlue, AppColors.main2],
-              ),
+              color: AppColors.primaryBlue.withOpacity(0.7),
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.primaryBlue.withOpacity(0.3),
+                  color: AppColors.primaryBlue.withOpacity(0.2),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
               ],
             ),
             child: ElevatedButton(
-              onPressed: (_selectedSede != null && _selectedUpss != null && _selectedStaff != null)
+              onPressed:
+                  (_selectedSede != null &&
+                      _selectedUpss != null &&
+                      _selectedStaff != null)
                   ? () {
                       EvaluationRepository.instance.startSession(
                         _selectedSede!,
@@ -123,17 +145,23 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.transparent,
                 shadowColor: Colors.transparent,
-                padding: const EdgeInsets.symmetric(vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 16,
+                  horizontal: 8,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: Text(
-                'Empezar Evaluación',
-                style: GoogleFonts.publicSans(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  'Empezar Evaluación',
+                  style: GoogleFonts.publicSans(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ),
@@ -210,6 +238,7 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
       ],
     );
   }
+
   Widget _buildPaginator({
     required int currentPage,
     required int totalPages,
@@ -285,45 +314,65 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
                     });
                   },
                   borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: isSelected ? AppColors.main1.withOpacity(0.05) : Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: isSelected ? AppColors.main1 : Colors.grey.withOpacity(0.2),
-                        width: isSelected ? 2 : 1,
-                      ),
-                      boxShadow: isSelected
-                          ? [BoxShadow(color: AppColors.main1.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 4))]
-                          : [],
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Image.asset(
-                          sede.imagePath,
-                          height: 100,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Container(
-                            height: 100,
-                            color: Colors.grey[200],
-                            child: const Icon(Icons.image_not_supported, color: Colors.grey),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? AppColors.main1.withOpacity(0.8)
+                              : Colors.white.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.4),
+                            width: 1,
                           ),
+                          boxShadow: isSelected
+                              ? [
+                                  BoxShadow(
+                                    color: AppColors.main1.withOpacity(0.2),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ]
+                              : [],
                         ),
-                        Padding(
-                          padding: const EdgeInsets.all(12.0),
-                          child: Text(
-                            sede.name,
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.publicSans(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                              color: isSelected ? AppColors.primaryBlue : AppColors.primaryBrown,
+                        clipBehavior: Clip.antiAlias,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Image.asset(
+                              sede.imagePath,
+                              height: 130,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  Container(
+                                    height: 100,
+                                    color: Colors.grey[200],
+                                    child: const Icon(
+                                      Icons.image_not_supported,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
                             ),
-                          ),
+                            Padding(
+                              padding: const EdgeInsets.all(12.0),
+                              child: Text(
+                                sede.name,
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.publicSans(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: isSelected
+                                      ? Colors.white
+                                      : AppColors.primaryBrown,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
@@ -426,63 +475,69 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
           itemBuilder: (context, index) {
             final area = displayUpss[index];
             final isSelected = _selectedUpss == area;
-            return Card(
-              elevation: 0,
-              margin: const EdgeInsets.only(bottom: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: BorderSide(
+            return ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                child: Card(
+                  elevation: 0,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(
+                      color: Colors.white.withOpacity(0.4),
+                      width: 1,
+                    ),
+                  ),
                   color: isSelected
-                      ? AppColors.main1
-                      : Colors.grey.withOpacity(0.2),
-                  width: isSelected ? 2 : 1,
-                ),
-              ),
-              color: isSelected
-                  ? AppColors.main1.withOpacity(0.05)
-                  : Colors.white,
-              child: ListTile(
-                contentPadding: const EdgeInsets.all(12),
-                leading: Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppColors.main1.withOpacity(0.2)
-                        : AppColors.main1.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
+                      ? AppColors.main1.withOpacity(0.8)
+                      : Colors.white.withOpacity(0.15),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.all(12),
+                    leading: Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? Colors.white.withOpacity(0.2)
+                            : AppColors.main1.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.business,
+                        color: isSelected ? Colors.white : AppColors.main1,
+                      ),
+                    ),
+                    title: Text(
+                      area.name,
+                      style: GoogleFonts.publicSans(
+                        fontWeight: FontWeight.bold,
+                        color: isSelected
+                            ? Colors.white
+                            : AppColors.primaryBrown,
+                      ),
+                    ),
+                    subtitle: Text(
+                      area.location,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: isSelected
+                            ? Colors.white.withOpacity(0.8)
+                            : const Color(0xFF4B5563),
+                      ),
+                    ),
+                    trailing: isSelected
+                        ? const Icon(Icons.check_circle, color: Colors.white)
+                        : const Icon(Icons.chevron_right, color: Colors.grey),
+                    onTap: () {
+                      setState(() {
+                        _selectedUpss = area;
+                        _selectedStaff = null;
+                        _staffPage = 0;
+                      });
+                    },
                   ),
-                  child: Icon(
-                    Icons.business,
-                    color: isSelected ? AppColors.primaryBlue : AppColors.main1,
-                  ),
                 ),
-                title: Text(
-                  area.name,
-                  style: GoogleFonts.publicSans(
-                    fontWeight: FontWeight.bold,
-                    color: isSelected
-                        ? AppColors.primaryBlue
-                        : AppColors.primaryBrown,
-                  ),
-                ),
-                subtitle: Text(
-                  area.location,
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
-                ),
-                trailing: isSelected
-                    ? const Icon(Icons.check_circle, color: AppColors.main1)
-                    : const Icon(Icons.chevron_right, color: Colors.grey),
-                onTap: () {
-                  setState(() {
-                    _selectedUpss = area;
-                    _selectedStaff = null;
-                    _staffPage = 0;
-                  });
-                },
               ),
             );
           },
@@ -493,7 +548,8 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
 
   Widget _buildStaffSection() {
     // Only show staff for the selected area; if none selected, empty list.
-    final List<StaffMember> areaStaff = (_selectedSede != null && _selectedUpss != null)
+    final List<StaffMember> areaStaff =
+        (_selectedSede != null && _selectedUpss != null)
         ? getStaffForArea(_selectedSede!.id, _selectedUpss!.id)
         : [];
 
@@ -590,103 +646,120 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
             mainAxisSpacing: 12,
             childAspectRatio: 0.85,
           ),
-          itemCount: displayStaff.length + (_staffPage == totalStaffPages - 1 ? 1 : 0), // +1 only on last page
+          itemCount:
+              displayStaff.length +
+              (_staffPage == totalStaffPages - 1
+                  ? 1
+                  : 0), // +1 only on last page
           itemBuilder: (context, index) {
-            if (index == displayStaff.length && _staffPage == totalStaffPages - 1) {
+            if (index == displayStaff.length &&
+                _staffPage == totalStaffPages - 1) {
               return _buildAddStaffCard();
             }
 
             final staff = displayStaff[index];
             final isSelected = _selectedStaff == staff;
-            return Card(
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: BorderSide(
-                  color: isSelected
-                      ? AppColors.main1
-                      : Colors.grey.withOpacity(0.2),
-                  width: isSelected ? 2 : 1,
-                ),
-              ),
-              color: isSelected
-                  ? AppColors.main1.withOpacity(0.05)
-                  : Colors.white,
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    child: InkWell(
-                      onTap: () {
-                        setState(() {
-                          _selectedStaff = staff;
-                        });
-                      },
-                      borderRadius: BorderRadius.circular(12),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: 60,
-                            height: 60,
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? AppColors.main1.withOpacity(0.2)
-                                  : AppColors.main1.withOpacity(0.1),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              Icons.person,
-                              size: 32,
-                              color: isSelected
-                                  ? AppColors.primaryBlue
-                                  : AppColors.main1,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            staff.name,
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.publicSans(
-                              fontWeight: FontWeight.bold,
-                              color: isSelected
-                                  ? AppColors.primaryBlue
-                                  : AppColors.primaryBrown,
-                              fontSize: 14,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            staff.role,
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                          if (isSelected) ...[
-                            const SizedBox(height: 8),
-                            const Icon(
-                              Icons.check_circle,
-                              color: AppColors.main1,
-                              size: 20,
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),           // closes InkWell
-                  ),           // closes Positioned.fill
-                  Positioned(
-                    top: 4,
-                    right: 4,
-                    child: IconButton(
-                      icon: const Icon(Icons.edit, size: 18, color: Colors.grey),
-                      onPressed: () => _showStaffModal(staffToEdit: staff),
+            return ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                child: Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(
+                      color: Colors.white.withOpacity(0.4),
+                      width: 1,
                     ),
                   ),
-                ],
+                  color: isSelected
+                      ? AppColors.main1.withOpacity(0.8)
+                      : Colors.white.withOpacity(0.15),
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: InkWell(
+                          onTap: () {
+                            setState(() {
+                              _selectedStaff = staff;
+                            });
+                          },
+                          borderRadius: BorderRadius.circular(12),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Container(
+                                  width: 60,
+                                  height: 60,
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? Colors.white.withOpacity(0.2)
+                                        : AppColors.main1.withOpacity(0.2),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    Icons.person,
+                                    size: 32,
+                                    color: isSelected
+                                        ? Colors.white
+                                        : AppColors.main1,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  staff.name,
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.publicSans(
+                                    fontWeight: FontWeight.bold,
+                                    color: isSelected
+                                        ? Colors.white
+                                        : AppColors.primaryBrown,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  staff.role,
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    color: isSelected
+                                        ? Colors.white.withOpacity(0.8)
+                                        : const Color(0xFF4B5563),
+                                  ),
+                                ),
+                                if (isSelected) ...[
+                                  const SizedBox(height: 8),
+                                  const Icon(
+                                    Icons.check_circle,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ), // closes InkWell
+                      ), // closes Positioned.fill
+                      Positioned(
+                        top: 4,
+                        right: 4,
+                        child: IconButton(
+                          icon: Icon(
+                            Icons.edit,
+                            size: 18,
+                            color: isSelected
+                                ? Colors.white.withOpacity(0.8)
+                                : const Color(0xFF4B5563),
+                          ),
+                          onPressed: () => _showStaffModal(staffToEdit: staff),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             );
           },
@@ -696,41 +769,50 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
   }
 
   Widget _buildAddStaffCard() {
-    return InkWell(
-      onTap: () => _showStaffModal(),
+    return ClipRRect(
       borderRadius: BorderRadius.circular(12),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: InkWell(
+          onTap: () => _showStaffModal(),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: Colors.grey.withOpacity(0.4),
-            width: 2,
-            style: BorderStyle.none, // Usually custom dash needed, but setting visual cue
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.4),
+                width: 1,
+              ),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.add,
+                    size: 28,
+                    color: AppColors.main1,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Añadir\nEmpleado',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primaryBrown,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.add, size: 28, color: Colors.grey),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Añadir\nEmpleado',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey.shade600,
-              ),
-            ),
-          ],
         ),
       ),
     );
@@ -739,24 +821,35 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
   void _showStaffModal({StaffMember? staffToEdit}) {
     if (_selectedUpss == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor selecciona una Unidad de Salud primero')),
+        const SnackBar(
+          content: Text('Por favor selecciona una Unidad de Salud primero'),
+        ),
       );
       return;
     }
 
     final isEditing = staffToEdit != null;
-    final nameController = TextEditingController(text: isEditing ? staffToEdit.name : '');
-    final roleController = TextEditingController(text: isEditing ? staffToEdit.role : '');
+    final nameController = TextEditingController(
+      text: isEditing ? staffToEdit.name : '',
+    );
+    final roleController = TextEditingController(
+      text: isEditing ? staffToEdit.role : '',
+    );
 
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: Text(
             isEditing ? 'Editar Empleado' : 'Añadir Empleado',
-            style: GoogleFonts.publicSans(fontWeight: FontWeight.bold, color: AppColors.primaryBrown),
+            style: GoogleFonts.publicSans(
+              fontWeight: FontWeight.bold,
+              color: AppColors.primaryBrown,
+            ),
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -799,7 +892,13 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text('Cancelar', style: GoogleFonts.inter(color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
+              child: Text(
+                'Cancelar',
+                style: GoogleFonts.inter(
+                  color: Colors.grey.shade600,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
             ElevatedButton(
               onPressed: () {
@@ -812,19 +911,38 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
                     updateStaff(staffToEdit.id, name, role);
                     // Update current selection if editing the selected staff
                     if (_selectedStaff?.id == staffToEdit.id) {
-                      _selectedStaff = StaffMember(id: staffToEdit.id, name: name, sedeId: staffToEdit.sedeId, areaId: staffToEdit.areaId, role: role);
+                      _selectedStaff = StaffMember(
+                        id: staffToEdit.id,
+                        name: name,
+                        sedeId: staffToEdit.sedeId,
+                        areaId: staffToEdit.areaId,
+                        role: role,
+                      );
                     }
                   } else {
-                    addStaffToArea(_selectedSede!.id, _selectedUpss!.id, name, role);
+                    addStaffToArea(
+                      _selectedSede!.id,
+                      _selectedUpss!.id,
+                      name,
+                      role,
+                    );
                   }
                 });
                 Navigator.pop(context);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.main1,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
-              child: Text(isEditing ? 'Guardar' : 'Añadir', style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold)),
+              child: Text(
+                isEditing ? 'Guardar' : 'Añadir',
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ],
         );
