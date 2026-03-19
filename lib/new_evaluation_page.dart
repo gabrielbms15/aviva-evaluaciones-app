@@ -45,6 +45,11 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
 
   @override
   Widget build(BuildContext context) {
+    bool canContinue = false;
+    if (_currentStep == 0) canContinue = _selectedSede != null;
+    if (_currentStep == 1) canContinue = _selectedUpss != null;
+    if (_currentStep == 2) canContinue = _selectedStaff != null;
+
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: const PrevalenciasAppBar(),
@@ -76,7 +81,7 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
                 Expanded(
                   child: PageView(
                     controller: _pageController,
-                    physics: const BouncingScrollPhysics(), // Allow swipe back/forth
+                    physics: const NeverScrollableScrollPhysics(),
                     onPageChanged: (int page) {
                       setState(() {
                         _currentStep = page;
@@ -89,7 +94,7 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
                     ],
                   ),
                 ),
-                _buildWizardNavigation(),
+                _buildWizardNavigation(canContinue),
               ],
             ),
           ),
@@ -105,16 +110,10 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
     );
   }
 
-  Widget _buildWizardNavigation() {
+  Widget _buildWizardNavigation(bool canContinue) {
     bool isFirstStep = _currentStep == 0;
     bool isLastStep = _currentStep == 2;
     
-    // Selection validation for each step
-    bool canContinue = false;
-    if (_currentStep == 0) canContinue = _selectedSede != null;
-    if (_currentStep == 1) canContinue = _selectedUpss != null;
-    if (_currentStep == 2) canContinue = _selectedStaff != null;
-
     return ClipRect(
       child: Container(
         padding: const EdgeInsets.all(24.0),
@@ -149,91 +148,102 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
               ),
               const SizedBox(height: 24),
               // Navigation Buttons
-              Row(
-                children: [
-                  // Back Button (Atrás) - Hidden in first step
-                  if (!isFirstStep)
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () {
-                          _pageController.previousPage(
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeInOut,
-                          );
-                        },
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                        ),
-                        child: Text(
-                          'Atrás',
-                          style: GoogleFonts.inter(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primaryBrown,
-                          ),
-                        ),
-                      ),
-                    )
-                  else
-                    const Spacer(),
-                  const SizedBox(width: 16),
-                  // Forward Button (Continuar / Empezar Evaluación)
+            Row(
+              children: [
+                if (!isFirstStep) ...[
+                  // Back Button (Atrás)
                   Expanded(
-                    flex: 2,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: canContinue 
-                            ? AppColors.primaryBlue.withOpacity(0.7) 
-                            : Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: canContinue ? [
-                          BoxShadow(
-                            color: AppColors.primaryBlue.withOpacity(0.2),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ] : [],
+                    child: TextButton(
+                      onPressed: () {
+                        _pageController.previousPage(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        );
+                      },
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
-                      child: ElevatedButton(
-                        onPressed: canContinue
-                            ? () {
-                                if (!isLastStep) {
-                                  _pageController.nextPage(
-                                    duration: const Duration(milliseconds: 300),
-                                    curve: Curves.easeInOut,
-                                  );
-                                } else {
-                                  EvaluationRepository.instance.startSession(
-                                    _selectedSede!,
-                                    _selectedUpss!,
-                                    _selectedStaff!,
-                                  );
-                                  Navigator.pushReplacementNamed(context, '/form');
-                                }
-                              }
-                            : null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: Text(
-                          isLastStep ? 'Empezar Evaluación' : 'Continuar',
-                          style: GoogleFonts.publicSans(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: canContinue ? Colors.white : Colors.grey.shade600,
-                          ),
+                      child: Text(
+                        'Atrás',
+                        style: GoogleFonts.inter(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primaryBrown,
                         ),
                       ),
                     ),
                   ),
+                  const SizedBox(width: 16),
+                  // Forward Button (Continuar / Empezar Evaluación)
+                  Expanded(
+                    flex: 2,
+                    child: _buildActionButton(canContinue, isLastStep),
+                  ),
+                ] else ...[
+                  // Centered Forward Button for Step 1
+                  const Spacer(),
+                  SizedBox(
+                    width: 200,
+                    child: _buildActionButton(canContinue, isLastStep),
+                  ),
+                  const Spacer(),
                 ],
-              ),
+              ],
+            ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButton(bool canContinue, bool isLastStep) {
+    return Container(
+      decoration: BoxDecoration(
+        color: canContinue 
+            ? AppColors.primaryBlue.withOpacity(0.7) 
+            : Colors.grey.shade300,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: canContinue ? [
+          BoxShadow(
+            color: AppColors.primaryBlue.withOpacity(0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ] : [],
+      ),
+      child: ElevatedButton(
+        onPressed: canContinue
+            ? () {
+                if (!isLastStep) {
+                  _pageController.nextPage(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                  );
+                } else {
+                  EvaluationRepository.instance.startSession(
+                    _selectedSede!,
+                    _selectedUpss!,
+                    _selectedStaff!,
+                  );
+                  Navigator.pushReplacementNamed(context, '/form');
+                }
+              }
+            : null,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        child: Text(
+          isLastStep ? 'Empezar Evaluación' : 'Continuar',
+          style: GoogleFonts.publicSans(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: canContinue ? Colors.white : Colors.grey.shade600,
           ),
         ),
       ),

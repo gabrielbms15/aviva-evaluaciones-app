@@ -13,4 +13,7 @@ class AppColors {
   static const Color headerColor4 = Color(0xFF0B4A56); // 40%
   static const Color headerColor5 = Color(0xFF20687A); // 15%
   // static const Color headerColor5 = Color(0xFF2A778B); // 15%
+
+  // Custom Highlights FF6F61
+  static const Color coral = Color(0xFF4596AB);
 }

@@ -4,6 +4,7 @@ import 'package:prevalencias/core/app_colors.dart';
 import 'package:prevalencias/data/evaluation_repository.dart';
 import 'package:prevalencias/models/models.dart';
 import 'package:prevalencias/widgets/prevalencias_app_bar.dart';
+import 'dart:ui';
 import 'new_evaluation_page.dart';
 import 'dashboard_page.dart';
 import 'package:prevalencias/data/app_data.dart';
@@ -12,7 +13,6 @@ import 'package:prevalencias/login_page.dart';
 void main() {
   runApp(const ClinicalAssessmentApp());
 }
-
 
 final List<FormCategory> _formCategories = [
   FormCategory(
@@ -396,7 +396,9 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
       return;
     }
     _areaStaff = getStaffForArea(_session!.sede.id, _session!.area.id);
-    _currentStaffIndex = _areaStaff.indexWhere((s) => s.id == _session!.staff.id);
+    _currentStaffIndex = _areaStaff.indexWhere(
+      (s) => s.id == _session!.staff.id,
+    );
     if (_currentStaffIndex < 0) _currentStaffIndex = 0;
     _staffPageController = PageController(initialPage: _currentStaffIndex);
     _searchController = SearchController();
@@ -436,17 +438,25 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
       if (q.subQuestions != null) {
         for (var sq in q.subQuestions!) {
           totalQuestions++;
-          final response = EvaluationRepository.instance.getResponse(_currentFormIndex, sq.id);
+          final response = EvaluationRepository.instance.getResponse(
+            _currentFormIndex,
+            sq.id,
+          );
           if (response == true) compliantCount++;
         }
       } else {
         totalQuestions++;
-        final response = EvaluationRepository.instance.getResponse(_currentFormIndex, q.id);
+        final response = EvaluationRepository.instance.getResponse(
+          _currentFormIndex,
+          q.id,
+        );
         if (response == true) compliantCount++;
       }
     }
 
-    double compliance = totalQuestions > 0 ? compliantCount / totalQuestions : 0;
+    double compliance = totalQuestions > 0
+        ? compliantCount / totalQuestions
+        : 0;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF1F5F9),
@@ -545,53 +555,82 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
 
   Widget _buildSearchBar() {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
+      padding: const EdgeInsets.only(bottom: 20.0),
       child: SearchAnchor(
         searchController: _searchController,
         viewConstraints: BoxConstraints(
           maxHeight: _areaStaff.length * 72.0 + 40,
         ),
         builder: (BuildContext context, SearchController controller) {
-          return SearchBar(
-            controller: controller,
-            padding: const WidgetStatePropertyAll<EdgeInsets>(
-              EdgeInsets.symmetric(horizontal: 16.0),
-            ),
-            onTap: () => controller.openView(),
-            onChanged: (_) => controller.openView(),
-            leading: const Icon(Icons.search, color: Color(0xFF006578)),
-            hintText: 'Buscar personal del área...',
-            hintStyle: WidgetStatePropertyAll<TextStyle>(
-              GoogleFonts.inter(color: Colors.grey),
-            ),
-            elevation: const WidgetStatePropertyAll<double>(0),
-            backgroundColor: const WidgetStatePropertyAll<Color>(Colors.white),
-            shape: WidgetStatePropertyAll<OutlinedBorder>(
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+              child: SearchBar(
+                controller: controller,
+                constraints: BoxConstraints(
+                  minHeight: MediaQuery.of(context).size.height * 0.05,
+                ),
+                padding: const WidgetStatePropertyAll<EdgeInsets>(
+                  EdgeInsets.symmetric(horizontal: 16.0),
+                ),
+                onTap: () => controller.openView(),
+                onChanged: (_) => controller.openView(),
+                leading: const Icon(Icons.search, color: AppColors.main1),
+                hintText: 'Buscar personal del área...',
+                hintStyle: WidgetStatePropertyAll<TextStyle>(
+                  GoogleFonts.inter(
+                    color: AppColors.primaryBrown.withOpacity(0.5),
+                    fontSize: 14,
+                  ),
+                ),
+                elevation: const WidgetStatePropertyAll<double>(0),
+                backgroundColor: WidgetStatePropertyAll<Color>(
+                  Colors.white.withOpacity(0.7),
+                ),
+                side: WidgetStatePropertyAll<BorderSide>(
+                  BorderSide(color: Colors.white.withOpacity(0.5), width: 1.5),
+                ),
+                shape: WidgetStatePropertyAll<OutlinedBorder>(
+                  RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+              ),
             ),
           );
         },
-        suggestionsBuilder: (BuildContext context, SearchController controller) {
-          final keyword = controller.value.text.toLowerCase();
-          final filtered = _areaStaff
-              .where((s) => s.name.toLowerCase().contains(keyword))
-              .toList();
-          return filtered.map((staff) {
-            final idx = _areaStaff.indexOf(staff);
-            return ListTile(
-              leading: const CircleAvatar(
-                backgroundColor: Color(0xFFEFF4FF),
-                child: Icon(Icons.person, color: Color(0xFF006578)),
-              ),
-              title: Text(staff.name, style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
-              subtitle: Text(staff.role, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w300)),
-              onTap: () {
-                controller.closeView('');
-                _switchToStaff(idx);
-              },
-            );
-          }).toList();
-        },
+        suggestionsBuilder:
+            (BuildContext context, SearchController controller) {
+              final keyword = controller.value.text.toLowerCase();
+              final filtered = _areaStaff
+                  .where((s) => s.name.toLowerCase().contains(keyword))
+                  .toList();
+              return filtered.map((staff) {
+                final idx = _areaStaff.indexOf(staff);
+                return ListTile(
+                  leading: const CircleAvatar(
+                    backgroundColor: Color(0xFFEFF4FF),
+                    child: Icon(Icons.person, color: Color(0xFF006578)),
+                  ),
+                  title: Text(
+                    staff.name,
+                    style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(
+                    staff.role,
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w300,
+                    ),
+                  ),
+                  onTap: () {
+                    controller.closeView('');
+                    _switchToStaff(idx);
+                  },
+                );
+              }).toList();
+            },
       ),
     );
   }
@@ -669,7 +708,11 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
                               width: 2,
                             ),
                           ),
-                          child: const Icon(Icons.person, color: Colors.white, size: 30),
+                          child: const Icon(
+                            Icons.person,
+                            color: Colors.white,
+                            size: 30,
+                          ),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
@@ -721,22 +764,29 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
                 ),
               ),
               Positioned(
-                bottom: 12,
+                bottom: 16,
                 right: 20,
-                child: Row(
-                  children: List.generate(_areaStaff.length, (index) {
-                    return Container(
-                      width: 6,
-                      height: 6,
-                      margin: const EdgeInsets.only(left: 4),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: _currentStaffIndex == index
-                            ? Colors.white
-                            : Colors.white.withOpacity(0.3),
-                      ),
-                    );
-                  }),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.2),
+                      width: 1,
+                    ),
+                  ),
+                  child: Text(
+                    '${_currentStaffIndex + 1} / ${_areaStaff.length}',
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -749,80 +799,111 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
   }
 
   Widget _buildComplianceCard(int value, int total, double percent) {
-    final color = const Color(0xFF003399);
-    final bgColor = const Color(0x26003399);
-    final barColor = const Color(0xFF4596AB);
     final percentage = (percent * 100).toInt();
+    final primaryColor = AppColors.main1;
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.check_circle_outline, size: 14, color: color),
-              const SizedBox(width: 8),
-              Text(
-                'CUMPLIMIENTO',
-                style: GoogleFonts.inter(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              RichText(
-                text: TextSpan(
-                  children: [
-                    TextSpan(
-                      text: '$value ',
-                      style: GoogleFonts.publicSans(
-                        color: color,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    TextSpan(
-                      text: '/ $total',
-                      style: GoogleFonts.publicSans(
-                        color: color.withOpacity(0.5),
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Text(
-                '$percentage%',
-                style: GoogleFonts.publicSans(
-                  color: color,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: LinearProgressIndicator(
-              value: percent,
-              minHeight: 6,
-              backgroundColor: Colors.white,
-              valueColor: AlwaysStoppedAnimation<Color>(barColor),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: AppColors.main1.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.5),
+              width: 1.0,
             ),
           ),
-        ],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: primaryColor.withOpacity(0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.analytics_rounded,
+                          size: 16,
+                          color: primaryColor,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Cumplimiento',
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primaryBrown,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Text(
+                    '$percentage%',
+                    style: GoogleFonts.publicSans(
+                      color: AppColors.main2,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: LinearProgressIndicator(
+                  value: percent,
+                  minHeight: 8,
+                  backgroundColor: Colors.white.withOpacity(0.6),
+                  valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Progreso',
+                    style: GoogleFonts.inter(
+                      color: Colors.grey.shade600,
+                      fontSize: 12,
+                    ),
+                  ),
+                  RichText(
+                    text: TextSpan(
+                      children: [
+                        TextSpan(
+                          text: '$value ',
+                          style: GoogleFonts.publicSans(
+                            color: AppColors.primaryBrown,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        TextSpan(
+                          text: 'de $total',
+                          style: GoogleFonts.inter(
+                            color: Colors.grey.shade500,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -908,7 +989,9 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
   }
 
   Widget _buildResponseButton(String qId, String label, bool value) {
-    bool isSelected = EvaluationRepository.instance.getResponse(_currentFormIndex, qId) == value;
+    bool isSelected =
+        EvaluationRepository.instance.getResponse(_currentFormIndex, qId) ==
+        value;
     Color activeColor = value
         ? const Color(0xFF9DE1FD)
         : const Color(0xFFFFDAD6);
@@ -921,8 +1004,15 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
 
     return GestureDetector(
       onTap: () => setState(() {
-        final cur = EvaluationRepository.instance.getResponse(_currentFormIndex, qId);
-        EvaluationRepository.instance.saveResponse(_currentFormIndex, qId, cur == value ? null : value);
+        final cur = EvaluationRepository.instance.getResponse(
+          _currentFormIndex,
+          qId,
+        );
+        EvaluationRepository.instance.saveResponse(
+          _currentFormIndex,
+          qId,
+          cur == value ? null : value,
+        );
       }),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
@@ -948,7 +1038,9 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
   }
 
   Widget _buildMiniResponseButton(String qId, String label, bool value) {
-    bool isSelected = EvaluationRepository.instance.getResponse(_currentFormIndex, qId) == value;
+    bool isSelected =
+        EvaluationRepository.instance.getResponse(_currentFormIndex, qId) ==
+        value;
     Color activeColor = value
         ? const Color(0xFF9DE1FD)
         : const Color(0xFFFFDAD6);
@@ -958,8 +1050,15 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
 
     return GestureDetector(
       onTap: () => setState(() {
-        final cur = EvaluationRepository.instance.getResponse(_currentFormIndex, qId);
-        EvaluationRepository.instance.saveResponse(_currentFormIndex, qId, cur == value ? null : value);
+        final cur = EvaluationRepository.instance.getResponse(
+          _currentFormIndex,
+          qId,
+        );
+        EvaluationRepository.instance.saveResponse(
+          _currentFormIndex,
+          qId,
+          cur == value ? null : value,
+        );
       }),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
@@ -1005,7 +1104,10 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
           TextField(
             controller: _observationsController,
             onChanged: (val) {
-              EvaluationRepository.instance.saveObservation(_currentFormIndex, val);
+              EvaluationRepository.instance.saveObservation(
+                _currentFormIndex,
+                val,
+              );
             },
             maxLines: 4,
             decoration: InputDecoration(
@@ -1029,8 +1131,9 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
   }
 
   void _syncObservations() {
-    _observationsController.text =
-        EvaluationRepository.instance.getObservation(_currentFormIndex);
+    _observationsController.text = EvaluationRepository.instance.getObservation(
+      _currentFormIndex,
+    );
   }
 
   Widget _buildFinishButton() {
@@ -1089,7 +1192,9 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
           _buildNavItem(Icons.add_circle, 'New', true, () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const NewEvaluationPage()),
+              MaterialPageRoute(
+                builder: (context) => const NewEvaluationPage(),
+              ),
             );
           }),
           _buildNavItem(Icons.assessment_outlined, 'Reports', false, () {}),
@@ -1098,7 +1203,12 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
     );
   }
 
-  Widget _buildNavItem(IconData icon, String label, bool isActive, VoidCallback onTap) {
+  Widget _buildNavItem(
+    IconData icon,
+    String label,
+    bool isActive,
+    VoidCallback onTap,
+  ) {
     Color color = isActive ? AppColors.primaryBlue : const Color(0xFF3F484B);
     return InkWell(
       onTap: onTap,
