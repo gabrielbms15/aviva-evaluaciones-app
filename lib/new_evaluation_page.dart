@@ -23,21 +23,25 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
   StaffMember? _selectedStaff;
   int _upssPage = 0;
   int _staffPage = 0;
+  int _currentStep = 0;
+  late PageController _pageController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(initialPage: 0);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    _upssSearchController.dispose();
+    _staffSearchController.dispose();
+    super.dispose();
+  }
 
   static const int _upssPerPage = 3;
   static const int _staffPerPage = 4;
-
-  void _resetSelection() {
-    setState(() {
-      _selectedSede = null;
-      _selectedUpss = null;
-      _selectedStaff = null;
-      _upssPage = 0;
-      _staffPage = 0;
-      _upssSearchController.clear();
-      _staffSearchController.clear();
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -46,7 +50,7 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
       appBar: const PrevalenciasAppBar(),
       body: Stack(
         children: [
-          // Background Gradient (Same as LoginPage)
+          // Background Gradient
           Container(
             width: double.infinity,
             height: double.infinity,
@@ -63,27 +67,30 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
             ),
           ),
           SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildHeader(),
-                  const SizedBox(height: 32),
-                  _buildSedeSection(),
-                  if (_selectedSede != null) ...[
-                    const SizedBox(height: 32),
-                    _buildUpssSection(),
-                  ],
-                  if (_selectedSede != null && _selectedUpss != null) ...[
-                    const SizedBox(height: 32),
-                    _buildStaffSection(),
-                  ],
-                  const SizedBox(height: 48),
-                  _buildActionButtons(),
-                  const SizedBox(height: 40),
-                ],
-              ),
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16),
+                  child: _buildHeader(),
+                ),
+                Expanded(
+                  child: PageView(
+                    controller: _pageController,
+                    physics: const BouncingScrollPhysics(), // Allow swipe back/forth
+                    onPageChanged: (int page) {
+                      setState(() {
+                        _currentStep = page;
+                      });
+                    },
+                    children: [
+                      _buildWizardStep(child: _buildSedeSection()),
+                      _buildWizardStep(child: _buildUpssSection()),
+                      _buildWizardStep(child: _buildStaffSection()),
+                    ],
+                  ),
+                ),
+                _buildWizardNavigation(),
+              ],
             ),
           ),
         ],
@@ -91,83 +98,145 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
     );
   }
 
-  Widget _buildActionButtons() {
-    return Row(
-      children: [
-        Expanded(
-          child: OutlinedButton(
-            onPressed: _resetSelection,
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              side: const BorderSide(color: AppColors.primaryBrown),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: Text(
-              'Cancelar',
-              style: GoogleFonts.inter(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: AppColors.primaryBrown,
-              ),
-            ),
+  Widget _buildWizardStep({required Widget child}) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+      child: child,
+    );
+  }
+
+  Widget _buildWizardNavigation() {
+    bool isFirstStep = _currentStep == 0;
+    bool isLastStep = _currentStep == 2;
+    
+    // Selection validation for each step
+    bool canContinue = false;
+    if (_currentStep == 0) canContinue = _selectedSede != null;
+    if (_currentStep == 1) canContinue = _selectedUpss != null;
+    if (_currentStep == 2) canContinue = _selectedStaff != null;
+
+    return ClipRect(
+      child: Container(
+        padding: const EdgeInsets.all(24.0),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.5),
+          border: Border(
+            top: BorderSide(color: Colors.white.withOpacity(0.4)),
           ),
         ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Container(
-            decoration: BoxDecoration(
-              color: AppColors.primaryBlue.withOpacity(0.7),
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primaryBlue.withOpacity(0.2),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: ElevatedButton(
-              onPressed:
-                  (_selectedSede != null &&
-                      _selectedUpss != null &&
-                      _selectedStaff != null)
-                  ? () {
-                      EvaluationRepository.instance.startSession(
-                        _selectedSede!,
-                        _selectedUpss!,
-                        _selectedStaff!,
-                      );
-                      Navigator.pushReplacementNamed(context, '/form');
-                    }
-                  : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.transparent,
-                shadowColor: Colors.transparent,
-                padding: const EdgeInsets.symmetric(
-                  vertical: 16,
-                  horizontal: 8,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Progress Dots
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(3, (index) {
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    height: 8,
+                    width: index == _currentStep ? 24 : 8,
+                    decoration: BoxDecoration(
+                      color: index == _currentStep 
+                          ? AppColors.main1 
+                          : AppColors.main1.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  );
+                }),
               ),
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  'Empezar Evaluación',
-                  style: GoogleFonts.publicSans(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+              const SizedBox(height: 24),
+              // Navigation Buttons
+              Row(
+                children: [
+                  // Back Button (Atrás) - Hidden in first step
+                  if (!isFirstStep)
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () {
+                          _pageController.previousPage(
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOut,
+                          );
+                        },
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        child: Text(
+                          'Atrás',
+                          style: GoogleFonts.inter(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primaryBrown,
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    const Spacer(),
+                  const SizedBox(width: 16),
+                  // Forward Button (Continuar / Empezar Evaluación)
+                  Expanded(
+                    flex: 2,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: canContinue 
+                            ? AppColors.primaryBlue.withOpacity(0.7) 
+                            : Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: canContinue ? [
+                          BoxShadow(
+                            color: AppColors.primaryBlue.withOpacity(0.2),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ] : [],
+                      ),
+                      child: ElevatedButton(
+                        onPressed: canContinue
+                            ? () {
+                                if (!isLastStep) {
+                                  _pageController.nextPage(
+                                    duration: const Duration(milliseconds: 300),
+                                    curve: Curves.easeInOut,
+                                  );
+                                } else {
+                                  EvaluationRepository.instance.startSession(
+                                    _selectedSede!,
+                                    _selectedUpss!,
+                                    _selectedStaff!,
+                                  );
+                                  Navigator.pushReplacementNamed(context, '/form');
+                                }
+                              }
+                            : null,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: Text(
+                          isLastStep ? 'Empezar Evaluación' : 'Continuar',
+                          style: GoogleFonts.publicSans(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: canContinue ? Colors.white : Colors.grey.shade600,
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
-            ),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
 
@@ -202,37 +271,6 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
             fontWeight: FontWeight.w400,
             color: const Color(0xFF6B7280),
             height: 1.4,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSectionHeader(String number, String title) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: AppColors.primaryBlue.withOpacity(0.7),
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Text(
-            number,
-            style: GoogleFonts.publicSans(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Text(
-          title,
-          style: GoogleFonts.publicSans(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: AppColors.primaryBrown,
           ),
         ),
       ],
@@ -290,8 +328,7 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionHeader('1', 'Sede'),
-        const SizedBox(height: 16),
+        const SizedBox(height: 8),
         Row(
           children: sedes.map((sede) {
             final isSelected = _selectedSede == sede;
@@ -317,7 +354,7 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(16),
                     child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                      filter: ImageFilter.blur(sigmaX: 7, sigmaY: 7),
                       child: Container(
                         decoration: BoxDecoration(
                           color: isSelected
@@ -395,7 +432,7 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _buildSectionHeader('2', 'Unidad de Salud'),
+            const SizedBox(width: 8), // Replaced header
             _buildPaginator(
               currentPage: _upssPage,
               totalPages: totalUpssPages,
@@ -565,7 +602,7 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _buildSectionHeader('3', 'Miembro del staff'),
+            const SizedBox(width: 8), // Replaced header
             if (areaStaff.length > _staffPerPage)
               _buildPaginator(
                 currentPage: _staffPage,
