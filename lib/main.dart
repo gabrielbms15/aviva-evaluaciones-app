@@ -5,6 +5,7 @@ import 'package:prevalencias/data/evaluation_repository.dart';
 import 'package:prevalencias/models/models.dart';
 import 'package:prevalencias/widgets/prevalencias_app_bar.dart';
 import 'dart:ui';
+import 'dart:math' as math;
 import 'new_evaluation_page.dart';
 import 'dashboard_page.dart';
 import 'package:prevalencias/data/app_data.dart';
@@ -557,9 +558,17 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20.0),
       child: SearchAnchor(
+        isFullScreen: false,
         searchController: _searchController,
         viewConstraints: BoxConstraints(
-          maxHeight: _areaStaff.length * 72.0 + 40,
+          maxHeight: (math.min(_areaStaff.length, 6) * 56.0) + 16.0,
+        ),
+        viewBackgroundColor: Colors.white,
+        viewElevation: 8,
+        viewSurfaceTintColor: Colors.transparent,
+        viewShape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: Colors.grey.shade100, width: 1),
         ),
         builder: (BuildContext context, SearchController controller) {
           return ClipRRect(
@@ -609,19 +618,35 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
               return filtered.map((staff) {
                 final idx = _areaStaff.indexOf(staff);
                 return ListTile(
+                  dense: true,
+                  visualDensity: VisualDensity.compact,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 0,
+                  ),
                   leading: const CircleAvatar(
+                    radius: 14,
                     backgroundColor: Color(0xFFEFF4FF),
-                    child: Icon(Icons.person, color: Color(0xFF006578)),
+                    child: Icon(
+                      Icons.person,
+                      size: 16,
+                      color: Color(0xFF006578),
+                    ),
                   ),
                   title: Text(
                     staff.name,
-                    style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+                    style: GoogleFonts.inter(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                      color: AppColors.primaryBrown,
+                    ),
                   ),
                   subtitle: Text(
                     staff.role,
                     style: GoogleFonts.inter(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w300,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w400,
+                      color: AppColors.primaryBrown.withOpacity(0.6),
                     ),
                   ),
                   onTap: () {
