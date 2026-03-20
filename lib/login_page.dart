@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:prevalencias/new_evaluation_page.dart';
 import 'package:prevalencias/core/app_colors.dart';
 import 'dart:ui';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -14,6 +15,45 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final TextEditingController _userController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  bool? _isServerOnline;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkServerHealth();
+  }
+
+  Future<void> _checkServerHealth() async {
+    try {
+      final supabase = Supabase.instance.client;
+      final response = await supabase.from('sedes').select();
+
+      print('Response: $response'); // qué llega
+      print('Type: ${response.runtimeType}'); // qué tipo es
+
+      bool hasExpectedData = false;
+      if (response != null && response is List) {
+        final names = response.map((e) => e['nombre'].toString()).toSet();
+        print('Names: $names'); // qué nombres encuentra
+        if (names.contains('Lima Centro') && names.contains('Los Olivos')) {
+          hasExpectedData = true;
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _isServerOnline = hasExpectedData;
+        });
+      }
+    } catch (e) {
+      print('Error: $e'); // si hay excepción
+      if (mounted) {
+        setState(() {
+          _isServerOnline = false;
+        });
+      }
+    }
+  }
 
   void _handleCancel() {
     _userController.clear();
@@ -73,7 +113,9 @@ class _LoginPageState extends State<LoginPage> {
                       );
                     },
                   ),
-                  const SizedBox(height: 50),
+                  const SizedBox(height: 20),
+                  _buildServerStatus(),
+                  const SizedBox(height: 30),
 
                   // Login Form with Enhanced Glassmorphism
                   ClipRRect(
@@ -202,6 +244,49 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildServerStatus() {
+    Color dotColor = Colors.grey;
+    String statusText = 'Verificando servidor...';
+
+    if (_isServerOnline == true) {
+      dotColor = Colors.green;
+      statusText = 'Servidor Encendido';
+    } else if (_isServerOnline == false) {
+      dotColor = Colors.red;
+      statusText = 'Servidor Apagado';
+    }
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            color: dotColor,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: dotColor.withOpacity(0.5),
+                blurRadius: 4,
+                spreadRadius: 1,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          statusText,
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            color: AppColors.primaryBrown,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
     );
   }
 }

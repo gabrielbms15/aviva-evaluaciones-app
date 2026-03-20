@@ -3,15 +3,22 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:prevalencias/core/app_colors.dart';
 import 'package:prevalencias/data/evaluation_repository.dart';
 import 'package:prevalencias/models/models.dart';
+import 'package:prevalencias/widgets/prevalencias_search_bar.dart';
 import 'package:prevalencias/widgets/prevalencias_app_bar.dart';
 import 'dart:ui';
-import 'dart:math' as math;
 import 'new_evaluation_page.dart';
 import 'dashboard_page.dart';
 import 'package:prevalencias/data/app_data.dart';
 import 'package:prevalencias/login_page.dart';
-
-void main() {
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
+  await Supabase.initialize(
+    url: dotenv.env['SUPABASE_URL']!,
+    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
+  );
   runApp(const ClinicalAssessmentApp());
 }
 
@@ -555,108 +562,56 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
   // ── SEARCH BAR (scoped to area staff) ──────────────────
 
   Widget _buildSearchBar() {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20.0),
-      child: SearchAnchor(
-        isFullScreen: false,
-        searchController: _searchController,
-        viewConstraints: BoxConstraints(
-          maxHeight: (math.min(_areaStaff.length, 6) * 56.0) + 16.0,
-        ),
-        viewBackgroundColor: Colors.white,
-        viewElevation: 8,
-        viewSurfaceTintColor: Colors.transparent,
-        viewShape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: BorderSide(color: Colors.grey.shade100, width: 1),
-        ),
-        builder: (BuildContext context, SearchController controller) {
-          return ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-              child: SearchBar(
-                controller: controller,
-                constraints: BoxConstraints(
-                  minHeight: MediaQuery.of(context).size.height * 0.05,
-                ),
-                padding: const WidgetStatePropertyAll<EdgeInsets>(
-                  EdgeInsets.symmetric(horizontal: 16.0),
-                ),
-                onTap: () => controller.openView(),
-                onChanged: (_) => controller.openView(),
-                leading: const Icon(Icons.search, color: AppColors.main1),
-                hintText: 'Buscar personal del área...',
-                hintStyle: WidgetStatePropertyAll<TextStyle>(
-                  GoogleFonts.inter(
-                    color: AppColors.primaryBrown.withOpacity(0.5),
-                    fontSize: 14,
-                  ),
-                ),
-                elevation: const WidgetStatePropertyAll<double>(0),
-                backgroundColor: WidgetStatePropertyAll<Color>(
-                  Colors.white.withOpacity(0.7),
-                ),
-                side: WidgetStatePropertyAll<BorderSide>(
-                  BorderSide(color: Colors.white.withOpacity(0.5), width: 1.5),
-                ),
-                shape: WidgetStatePropertyAll<OutlinedBorder>(
-                  RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
+    return PrevalenciasSearchBar(
+      controller: _searchController,
+      hintText: 'Buscar personal del área...',
+      itemCount: _areaStaff.length,
+      suggestionsBuilder: (BuildContext context, SearchController controller) {
+        final keyword = controller.value.text.toLowerCase();
+        final filtered = _areaStaff
+            .where((s) => s.name.toLowerCase().contains(keyword))
+            .toList();
+        return filtered.map((staff) {
+          final idx = _areaStaff.indexOf(staff);
+          return ListTile(
+            dense: true,
+            visualDensity: VisualDensity.compact,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 0,
+            ),
+            leading: const CircleAvatar(
+              radius: 14,
+              backgroundColor: Color(0xFFEFF4FF),
+              child: Icon(
+                Icons.person,
+                size: 16,
+                color: Color(0xFF006578),
               ),
             ),
-          );
-        },
-        suggestionsBuilder:
-            (BuildContext context, SearchController controller) {
-              final keyword = controller.value.text.toLowerCase();
-              final filtered = _areaStaff
-                  .where((s) => s.name.toLowerCase().contains(keyword))
-                  .toList();
-              return filtered.map((staff) {
-                final idx = _areaStaff.indexOf(staff);
-                return ListTile(
-                  dense: true,
-                  visualDensity: VisualDensity.compact,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 0,
-                  ),
-                  leading: const CircleAvatar(
-                    radius: 14,
-                    backgroundColor: Color(0xFFEFF4FF),
-                    child: Icon(
-                      Icons.person,
-                      size: 16,
-                      color: Color(0xFF006578),
-                    ),
-                  ),
-                  title: Text(
-                    staff.name,
-                    style: GoogleFonts.inter(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                      color: AppColors.primaryBrown,
-                    ),
-                  ),
-                  subtitle: Text(
-                    staff.role,
-                    style: GoogleFonts.inter(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w400,
-                      color: AppColors.primaryBrown.withOpacity(0.6),
-                    ),
-                  ),
-                  onTap: () {
-                    controller.closeView('');
-                    _switchToStaff(idx);
-                  },
-                );
-              }).toList();
+            title: Text(
+              staff.name,
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+                color: AppColors.primaryBrown,
+              ),
+            ),
+            subtitle: Text(
+              staff.role,
+              style: GoogleFonts.inter(
+                fontSize: 10,
+                fontWeight: FontWeight.w400,
+                color: AppColors.primaryBrown.withOpacity(0.6),
+              ),
+            ),
+            onTap: () {
+              controller.closeView('');
+              _switchToStaff(idx);
             },
-      ),
+          );
+        }).toList();
+      },
     );
   }
 

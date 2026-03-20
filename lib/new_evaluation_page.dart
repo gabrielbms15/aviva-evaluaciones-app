@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:prevalencias/core/app_colors.dart';
 import 'package:prevalencias/models/models.dart';
 import 'package:prevalencias/widgets/prevalencias_app_bar.dart';
+import 'package:prevalencias/widgets/prevalencias_search_bar.dart';
 import 'package:prevalencias/data/app_data.dart';
 import 'package:prevalencias/data/evaluation_repository.dart';
 import 'dart:ui';
@@ -75,8 +76,11 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
             child: Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16),
-                  child: _buildHeader(),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24.0,
+                    vertical: 16,
+                  ),
+                  child: _buildHeader(_currentStep),
                 ),
                 Expanded(
                   child: PageView(
@@ -113,22 +117,22 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
   Widget _buildWizardNavigation(bool canContinue) {
     bool isFirstStep = _currentStep == 0;
     bool isLastStep = _currentStep == 2;
-    
+    final double primaryBtnWidth = MediaQuery.of(context).size.width * 0.35;
+    final double backBtnWidth = MediaQuery.of(context).size.width * 0.35;
+
     return ClipRect(
       child: Container(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.symmetric(horizontal: 36.0, vertical: 12.0),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.5),
-          border: Border(
-            top: BorderSide(color: Colors.white.withOpacity(0.4)),
-          ),
+          color: Colors.white.withOpacity(0.3),
+          border: Border(top: BorderSide(color: Colors.white.withOpacity(0.4))),
         ),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Progress Dots
+              // Step Dots
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(3, (index) {
@@ -138,8 +142,8 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
                     height: 8,
                     width: index == _currentStep ? 24 : 8,
                     decoration: BoxDecoration(
-                      color: index == _currentStep 
-                          ? AppColors.main1 
+                      color: index == _currentStep
+                          ? AppColors.main1
                           : AppColors.main1.withOpacity(0.3),
                       borderRadius: BorderRadius.circular(4),
                     ),
@@ -148,48 +152,40 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
               ),
               const SizedBox(height: 24),
               // Navigation Buttons
-            Row(
-              children: [
-                if (!isFirstStep) ...[
-                  // Back Button (Atrás)
-                  Expanded(
-                    child: TextButton(
-                      onPressed: () {
-                        _pageController.previousPage(
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeInOut,
-                        );
-                      },
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      child: Text(
-                        'Atrás',
-                        style: GoogleFonts.inter(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primaryBrown,
+              Row(
+                mainAxisAlignment: isFirstStep
+                    ? MainAxisAlignment.center
+                    : MainAxisAlignment.spaceBetween,
+                children: [
+                  if (!isFirstStep)
+                    SizedBox(
+                      width: backBtnWidth,
+                      child: TextButton(
+                        onPressed: () {
+                          _pageController.previousPage(
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOut,
+                          );
+                        },
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: Text(
+                          'Atrás',
+                          style: GoogleFonts.outfit(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
+                            color: const Color.fromARGB(255, 102, 102, 102),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 16),
-                  // Forward Button (Continuar / Empezar Evaluación)
-                  Expanded(
-                    flex: 2,
-                    child: _buildActionButton(canContinue, isLastStep),
-                  ),
-                ] else ...[
-                  // Centered Forward Button for Step 1
-                  const Spacer(),
                   SizedBox(
-                    width: 200,
+                    width: primaryBtnWidth,
                     child: _buildActionButton(canContinue, isLastStep),
                   ),
-                  const Spacer(),
                 ],
-              ],
-            ),
+              ),
             ],
           ),
         ),
@@ -198,84 +194,97 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
   }
 
   Widget _buildActionButton(bool canContinue, bool isLastStep) {
-    return Container(
-      decoration: BoxDecoration(
-        color: canContinue 
-            ? AppColors.primaryBlue.withOpacity(0.7) 
-            : Colors.grey.shade300,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: canContinue ? [
-          BoxShadow(
-            color: AppColors.primaryBlue.withOpacity(0.2),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ] : [],
-      ),
-      child: ElevatedButton(
-        onPressed: canContinue
-            ? () {
-                if (!isLastStep) {
-                  _pageController.nextPage(
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                  );
-                } else {
-                  EvaluationRepository.instance.startSession(
-                    _selectedSede!,
-                    _selectedUpss!,
-                    _selectedStaff!,
-                  );
-                  Navigator.pushReplacementNamed(context, '/form');
-                }
-              }
-            : null,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          shadowColor: Colors.transparent,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+    return SizedBox(
+      height: MediaQuery.of(context).size.height * 0.05,
+      child: Container(
+        decoration: BoxDecoration(
+          color: canContinue
+              ? AppColors.navyBlue.withOpacity(0.7)
+              : Colors.grey.shade300,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: canContinue
+              ? [
+                  BoxShadow(
+                    color: AppColors.navyBlue.withOpacity(0.3),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
+                  ),
+                ]
+              : [],
         ),
-        child: Text(
-          isLastStep ? 'Empezar Evaluación' : 'Continuar',
-          style: GoogleFonts.publicSans(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: canContinue ? Colors.white : Colors.grey.shade600,
+        child: ElevatedButton(
+          onPressed: canContinue
+              ? () {
+                  if (!isLastStep) {
+                    _pageController.nextPage(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                    );
+                  } else {
+                    EvaluationRepository.instance.startSession(
+                      _selectedSede!,
+                      _selectedUpss!,
+                      _selectedStaff!,
+                    );
+                    Navigator.pushReplacementNamed(context, '/form');
+                  }
+                }
+              : null,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.transparent,
+            shadowColor: Colors.transparent,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+          child: Text(
+            isLastStep ? 'Iniciar' : 'Continuar',
+            style: GoogleFonts.outfit(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.5,
+              color: canContinue ? Colors.white : Colors.grey.shade600,
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(int currentStep) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         RichText(
           text: TextSpan(
             style: GoogleFonts.publicSans(
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.5,
+              fontSize: 32,
+              height: 1.1,
+              letterSpacing: -1.0,
             ),
             children: [
-              const TextSpan(
+              TextSpan(
                 text: 'Iniciar\n',
-                style: TextStyle(color: Colors.black),
+                style: GoogleFonts.publicSans(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w300,
+                  color: AppColors.main2,
+                ),
               ),
-              const TextSpan(
+              TextSpan(
                 text: 'Evaluación',
-                style: TextStyle(color: AppColors.main2),
+                style: GoogleFonts.publicSans(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.headerColor5,
+                ),
               ),
             ],
           ),
         ),
         const SizedBox(height: 8),
         Text(
-          'Selecciona la UPSS y el profesional de salud para empezar la revisión de competencias técnicas',
+          'Selecciona la sede, UPSS y el personal para empezar la evaluación de prevalencias',
           style: GoogleFonts.inter(
             fontSize: 14,
             fontWeight: FontWeight.w400,
@@ -283,7 +292,69 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
             height: 1.4,
           ),
         ),
+        const SizedBox(height: 24),
+        _buildStepIndicators(currentStep),
       ],
+    );
+  }
+
+  Widget _buildStepIndicators(int currentStep) {
+    final steps = ['Sede', 'UPSS', 'Staff'];
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: List.generate(steps.length * 2 - 1, (i) {
+          if (i.isOdd) {
+            final stepBeforeActive = (i ~/ 2) < currentStep;
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4.0),
+              child: Icon(
+                Icons.chevron_right,
+                color: stepBeforeActive
+                    ? AppColors.main1.withOpacity(0.5)
+                    : Colors.grey.shade300,
+                size: 20,
+              ),
+            );
+          }
+
+          final index = i ~/ 2;
+          final isActive = index <= currentStep;
+          final isCurrent = index == currentStep;
+
+          return Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  'Paso ${index + 1}',
+                  style: GoogleFonts.inter(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: isActive ? AppColors.main1 : Colors.grey.shade400,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  steps[index],
+                  style: GoogleFonts.publicSans(
+                    fontSize: 14,
+                    fontWeight: isCurrent ? FontWeight.bold : FontWeight.w600,
+                    color: isActive
+                        ? AppColors.primaryBrown
+                        : Colors.grey.shade400,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          );
+        }),
+      ),
     );
   }
 
@@ -439,46 +510,12 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const SizedBox(width: 8), // Replaced header
-            _buildPaginator(
-              currentPage: _upssPage,
-              totalPages: totalUpssPages,
-              onPrev: () => setState(() => _upssPage--),
-              onNext: () => setState(() => _upssPage++),
-            ),
-          ],
-        ),
         const SizedBox(height: 12),
-        SearchAnchor(
-          searchController: _upssSearchController,
-          viewConstraints: BoxConstraints(
-            maxHeight: clinicalAreas.length * 72.0 + 40,
-          ),
-          builder: (BuildContext context, SearchController controller) {
-            return SearchBar(
-              controller: controller,
-              padding: const WidgetStatePropertyAll<EdgeInsets>(
-                EdgeInsets.symmetric(horizontal: 16.0),
-              ),
-              onTap: () => controller.openView(),
-              onChanged: (_) => controller.openView(),
-              leading: const Icon(Icons.search, color: AppColors.main1),
-              hintText: 'Buscar UPSS...',
-              hintStyle: WidgetStatePropertyAll<TextStyle>(
-                GoogleFonts.inter(color: Colors.grey),
-              ),
-              elevation: const WidgetStatePropertyAll<double>(0),
-              backgroundColor: const WidgetStatePropertyAll<Color>(
-                Colors.white,
-              ),
-              shape: WidgetStatePropertyAll<OutlinedBorder>(
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            );
-          },
+        PrevalenciasSearchBar(
+          controller: _upssSearchController,
+          hintText: 'Buscar UPSS...',
+          itemCount: clinicalAreas.length,
+          padding: const EdgeInsets.only(bottom: 0),
           suggestionsBuilder:
               (BuildContext context, SearchController controller) {
                 final String keyword = controller.value.text.toLowerCase();
@@ -490,17 +527,36 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
 
                 return filteredUpss.map((area) {
                   return ListTile(
-                    leading: const Icon(
-                      Icons.local_hospital,
-                      color: AppColors.main1,
+                    dense: true,
+                    visualDensity: VisualDensity.compact,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 0,
+                    ),
+                    leading: const CircleAvatar(
+                      radius: 14,
+                      backgroundColor: Color(0xFFEFF4FF),
+                      child: Icon(
+                        Icons.local_hospital,
+                        size: 16,
+                        color: AppColors.main1,
+                      ),
                     ),
                     title: Text(
                       area.name,
-                      style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: AppColors.primaryBrown,
+                      ),
                     ),
                     subtitle: Text(
                       area.location,
-                      style: GoogleFonts.inter(fontSize: 12),
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w400,
+                        color: AppColors.primaryBrown.withOpacity(0.6),
+                      ),
                     ),
                     onTap: () {
                       controller.closeView('');
@@ -514,7 +570,8 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
                 }).toList();
               },
         ),
-        const SizedBox(height: 16),
+
+        const SizedBox(height: 8),
         ListView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -522,72 +579,106 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
           itemBuilder: (context, index) {
             final area = displayUpss[index];
             final isSelected = _selectedUpss == area;
-            return ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                child: Card(
-                  elevation: 0,
-                  margin: const EdgeInsets.only(bottom: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(
-                      color: Colors.white.withOpacity(0.4),
-                      width: 1,
-                    ),
-                  ),
-                  color: isSelected
-                      ? AppColors.main1.withOpacity(0.8)
-                      : Colors.white.withOpacity(0.15),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.all(12),
-                    leading: Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? Colors.white.withOpacity(0.2)
-                            : AppColors.main1.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(8),
+            return SizedBox(
+              height: MediaQuery.of(context).size.height * 0.1,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                    child: Card(
+                      elevation: 0,
+                      margin: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(
+                          color: Colors.white.withOpacity(0.4),
+                          width: 1,
+                        ),
                       ),
-                      child: Icon(
-                        Icons.business,
-                        color: isSelected ? Colors.white : AppColors.main1,
+                      color: isSelected
+                          ? AppColors.main1.withOpacity(0.8)
+                          : Colors.white.withOpacity(0.15),
+                      child: Center(
+                        child: ListTile(
+                          dense: true,
+                          visualDensity: VisualDensity.compact,
+                          minVerticalPadding: 0,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 0,
+                          ),
+                          leading: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? Colors.white.withOpacity(0.2)
+                                  : AppColors.main1.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              Icons.business,
+                              color: isSelected
+                                  ? Colors.white
+                                  : AppColors.main1,
+                            ),
+                          ),
+                          title: Text(
+                            area.name,
+                            style: GoogleFonts.publicSans(
+                              fontWeight: FontWeight.bold,
+                              color: isSelected
+                                  ? Colors.white
+                                  : AppColors.primaryBrown,
+                            ),
+                          ),
+                          subtitle: Text(
+                            area.location,
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: isSelected
+                                  ? Colors.white.withOpacity(0.8)
+                                  : const Color(0xFF4B5563),
+                            ),
+                          ),
+                          trailing: isSelected
+                              ? const Icon(
+                                  Icons.check_circle,
+                                  color: Colors.white,
+                                )
+                              : const Icon(
+                                  Icons.chevron_right,
+                                  color: Colors.grey,
+                                ),
+                          onTap: () {
+                            setState(() {
+                              _selectedUpss = area;
+                              _selectedStaff = null;
+                              _staffPage = 0;
+                            });
+                          },
+                        ),
                       ),
                     ),
-                    title: Text(
-                      area.name,
-                      style: GoogleFonts.publicSans(
-                        fontWeight: FontWeight.bold,
-                        color: isSelected
-                            ? Colors.white
-                            : AppColors.primaryBrown,
-                      ),
-                    ),
-                    subtitle: Text(
-                      area.location,
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: isSelected
-                            ? Colors.white.withOpacity(0.8)
-                            : const Color(0xFF4B5563),
-                      ),
-                    ),
-                    trailing: isSelected
-                        ? const Icon(Icons.check_circle, color: Colors.white)
-                        : const Icon(Icons.chevron_right, color: Colors.grey),
-                    onTap: () {
-                      setState(() {
-                        _selectedUpss = area;
-                        _selectedStaff = null;
-                        _staffPage = 0;
-                      });
-                    },
                   ),
                 ),
               ),
             );
           },
+        ),
+        const SizedBox(height: 12),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            _buildPaginator(
+              currentPage: _upssPage,
+              totalPages: totalUpssPages,
+              onPrev: () => setState(() => _upssPage--),
+              onNext: () => setState(() => _upssPage++),
+            ),
+          ],
         ),
       ],
     );
@@ -609,47 +700,12 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const SizedBox(width: 8), // Replaced header
-            if (areaStaff.length > _staffPerPage)
-              _buildPaginator(
-                currentPage: _staffPage,
-                totalPages: totalStaffPages,
-                onPrev: () => setState(() => _staffPage--),
-                onNext: () => setState(() => _staffPage++),
-              ),
-          ],
-        ),
         const SizedBox(height: 12),
-        SearchAnchor(
-          searchController: _staffSearchController,
-          viewConstraints: BoxConstraints(
-            maxHeight: areaStaff.length * 72.0 + 40,
-          ),
-          builder: (BuildContext context, SearchController controller) {
-            return SearchBar(
-              controller: controller,
-              padding: const WidgetStatePropertyAll<EdgeInsets>(
-                EdgeInsets.symmetric(horizontal: 16.0),
-              ),
-              onTap: () => controller.openView(),
-              onChanged: (_) => controller.openView(),
-              leading: const Icon(Icons.search, color: AppColors.main1),
-              hintText: 'Buscar Miembro del staff...',
-              hintStyle: WidgetStatePropertyAll<TextStyle>(
-                GoogleFonts.inter(color: Colors.grey),
-              ),
-              elevation: const WidgetStatePropertyAll<double>(0),
-              backgroundColor: const WidgetStatePropertyAll<Color>(
-                Colors.white,
-              ),
-              shape: WidgetStatePropertyAll<OutlinedBorder>(
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            );
-          },
+        PrevalenciasSearchBar(
+          controller: _staffSearchController,
+          hintText: 'Buscar Miembro del staff...',
+          itemCount: areaStaff.length,
+          padding: const EdgeInsets.only(bottom: 0),
           suggestionsBuilder:
               (BuildContext context, SearchController controller) {
                 final String keyword = controller.value.text.toLowerCase();
@@ -661,17 +717,36 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
 
                 return filteredStaff.map((staff) {
                   return ListTile(
+                    dense: true,
+                    visualDensity: VisualDensity.compact,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 0,
+                    ),
                     leading: const CircleAvatar(
+                      radius: 14,
                       backgroundColor: Color(0xFFEFF4FF),
-                      child: Icon(Icons.person, color: AppColors.main1),
+                      child: Icon(
+                        Icons.person,
+                        size: 16,
+                        color: AppColors.main1,
+                      ),
                     ),
                     title: Text(
                       staff.name,
-                      style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: AppColors.primaryBrown,
+                      ),
                     ),
                     subtitle: Text(
                       staff.role,
-                      style: GoogleFonts.inter(fontSize: 12),
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w400,
+                        color: AppColors.primaryBrown.withOpacity(0.6),
+                      ),
                     ),
                     onTap: () {
                       controller.closeView('');
@@ -691,7 +766,7 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
             crossAxisCount: 2,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
-            childAspectRatio: 0.85,
+            childAspectRatio: 0.98,
           ),
           itemCount:
               displayStaff.length +
@@ -733,13 +808,16 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
                           },
                           borderRadius: BorderRadius.circular(12),
                           child: Padding(
-                            padding: const EdgeInsets.all(16.0),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Container(
-                                  width: 60,
-                                  height: 60,
+                                  width: 48,
+                                  height: 48,
                                   decoration: BoxDecoration(
                                     color: isSelected
                                         ? Colors.white.withOpacity(0.2)
@@ -748,22 +826,22 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
                                   ),
                                   child: Icon(
                                     Icons.person,
-                                    size: 32,
+                                    size: 24,
                                     color: isSelected
                                         ? Colors.white
                                         : AppColors.main1,
                                   ),
                                 ),
-                                const SizedBox(height: 12),
+                                const SizedBox(height: 8),
                                 Text(
-                                  staff.name,
+                                  _toTitleCase(staff.name),
                                   textAlign: TextAlign.center,
                                   style: GoogleFonts.publicSans(
                                     fontWeight: FontWeight.bold,
                                     color: isSelected
                                         ? Colors.white
                                         : AppColors.primaryBrown,
-                                    fontSize: 14,
+                                    fontSize: 12,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
@@ -771,18 +849,18 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
                                   staff.role,
                                   textAlign: TextAlign.center,
                                   style: GoogleFonts.inter(
-                                    fontSize: 12,
+                                    fontSize: 10,
                                     color: isSelected
                                         ? Colors.white.withOpacity(0.8)
                                         : const Color(0xFF4B5563),
                                   ),
                                 ),
                                 if (isSelected) ...[
-                                  const SizedBox(height: 8),
+                                  const SizedBox(height: 4),
                                   const Icon(
                                     Icons.check_circle,
                                     color: Colors.white,
-                                    size: 20,
+                                    size: 18,
                                   ),
                                 ],
                               ],
@@ -794,9 +872,11 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
                         top: 4,
                         right: 4,
                         child: IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
                           icon: Icon(
                             Icons.edit,
-                            size: 18,
+                            size: 14,
                             color: isSelected
                                 ? Colors.white.withOpacity(0.8)
                                 : const Color(0xFF4B5563),
@@ -811,6 +891,19 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
             );
           },
         ),
+        const SizedBox(height: 12),
+        if (areaStaff.length > _staffPerPage)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              _buildPaginator(
+                currentPage: _staffPage,
+                totalPages: totalStaffPages,
+                onPrev: () => setState(() => _staffPage--),
+                onNext: () => setState(() => _staffPage++),
+              ),
+            ],
+          ),
       ],
     );
   }
@@ -995,5 +1088,17 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
         );
       },
     );
+  }
+
+  String _toTitleCase(String text) {
+    if (text.isEmpty) return text;
+    return text
+        .toLowerCase()
+        .split(' ')
+        .map((word) {
+          if (word.isEmpty) return word;
+          return word[0].toUpperCase() + word.substring(1);
+        })
+        .join(' ');
   }
 }
