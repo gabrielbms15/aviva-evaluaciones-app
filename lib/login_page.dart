@@ -4,6 +4,7 @@ import 'package:prevalencias/new_evaluation_page.dart';
 import 'package:prevalencias/core/app_colors.dart';
 import 'dart:ui';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:async';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -16,6 +17,7 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _userController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool? _isServerOnline;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -24,34 +26,41 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _checkServerHealth() async {
+    print('iniciando health check');
     try {
       final supabase = Supabase.instance.client;
-      final response = await supabase.from('sedes').select();
+      print('cliente obtenido');
 
-      print('Response: $response'); // qué llega
-      print('Type: ${response.runtimeType}'); // qué tipo es
+      final response = await supabase
+          .from('sedes')
+          .select()
+          .timeout(const Duration(seconds: 10));
+
+      print('Response: $response');
+      print('Type: ${response.runtimeType}');
 
       bool hasExpectedData = false;
       if (response != null && response is List) {
         final names = response.map((e) => e['nombre'].toString()).toSet();
-        print('Names: $names'); // qué nombres encuentra
+        print('Names: $names');
         if (names.contains('Lima Centro') && names.contains('Los Olivos')) {
           hasExpectedData = true;
         }
       }
+
+      print('hasExpectedData: $hasExpectedData');
 
       if (mounted) {
         setState(() {
           _isServerOnline = hasExpectedData;
         });
       }
+    } on TimeoutException catch (e) {
+      print('Timeout: $e');
+      if (mounted) setState(() => _isServerOnline = false);
     } catch (e) {
-      print('Error: $e'); // si hay excepción
-      if (mounted) {
-        setState(() {
-          _isServerOnline = false;
-        });
-      }
+      print('Error: $e');
+      if (mounted) setState(() => _isServerOnline = false);
     }
   }
 
@@ -60,11 +69,58 @@ class _LoginPageState extends State<LoginPage> {
     _passwordController.clear();
   }
 
-  void _handleLogin() {
-    // Basic navigation as requested (no backend yet)
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => const NewEvaluationPage()),
-    );
+  Future<void> _handleLogin() async {
+    final email = _userController.text.trim();
+    final password = _passwordController.text;
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor, ingresa tu correo y contraseña')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final response = await Supabase.instance.client.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
+
+      if (response.session != null) {
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const NewEvaluationPage()),
+          );
+        }
+      }
+    } on AuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.message),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error de conexión. Inténtalo de nuevo más tarde.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -193,7 +249,7 @@ class _LoginPageState extends State<LoginPage> {
                             SizedBox(
                               width: double.infinity,
                               child: ElevatedButton(
-                                onPressed: _handleLogin,
+                                onPressed: _isLoading ? null : _handleLogin,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppColors.main1,
                                   foregroundColor: Colors.white,
@@ -205,13 +261,22 @@ class _LoginPageState extends State<LoginPage> {
                                   ),
                                   elevation: 0,
                                 ),
-                                child: Text(
-                                  'Iniciar Sesión',
-                                  style: GoogleFonts.inter(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
+                                child: _isLoading
+                                    ? const SizedBox(
+                                        height: 20,
+                                        width: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                        ),
+                                      )
+                                    : Text(
+                                        'Iniciar Sesión',
+                                        style: GoogleFonts.inter(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                        ),
+                                      ),
                               ),
                             ),
                             const SizedBox(height: 12),

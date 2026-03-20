@@ -6,6 +6,7 @@ import 'package:prevalencias/widgets/prevalencias_app_bar.dart';
 import 'package:prevalencias/widgets/prevalencias_search_bar.dart';
 import 'package:prevalencias/data/app_data.dart';
 import 'package:prevalencias/data/evaluation_repository.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:ui';
 
 class NewEvaluationPage extends StatefulWidget {
@@ -27,10 +28,135 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
   int _currentStep = 0;
   late PageController _pageController;
 
+  List<Sede> _dynamicSedes = [];
+  bool _isLoadingSedes = true;
+
+  List<ClinicalArea> _dynamicAreas = [];
+  bool _isLoadingAreas = false;
+
+  List<StaffMember> _dynamicStaff = [];
+  bool _isLoadingStaff = false;
+
   @override
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: 0);
+    _fetchSedes();
+  }
+
+  Future<void> _fetchSedes() async {
+    try {
+      final response = await Supabase.instance.client.from('sedes').select();
+      
+      final List<Sede> loadedSedes = [];
+      for (var row in response) {
+         // Cambiado a la columna 'nombre'
+         final String sedeName = row['nombre']?.toString() ?? 'Desconocida';
+         final String id = row['id']?.toString() ?? sedeName.toLowerCase().replaceAll(' ', '_');
+         
+         // Lógica chévere: minúsculas, guiones bajos + .webp
+         final String formattedName = sedeName.toLowerCase().replaceAll(' ', '_');
+         final String imagePath = 'assets/$formattedName.webp';
+         
+         loadedSedes.add(Sede(id: id, name: sedeName, imagePath: imagePath));
+      }
+      
+      if (mounted) {
+
+        setState(() {
+          _dynamicSedes = loadedSedes;
+          _isLoadingSedes = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingSedes = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al cargar las sedes')),
+        );
+      }
+    }
+  }
+
+  Future<void> _fetchAreasForSede(String sedeId) async {
+    setState(() {
+      _isLoadingAreas = true;
+      _dynamicAreas = [];
+    });
+
+    try {
+      final response = await Supabase.instance.client
+          .from('areas')
+          .select()
+          .eq('sede_id', sedeId);
+
+      final List<ClinicalArea> loadedAreas = [];
+      for (var row in response) {
+        final String name = row['nombre']?.toString() ?? 'Área Desconocida';
+        final String id = row['id']?.toString() ?? name.toLowerCase().replaceAll(' ', '_');
+        final String location = 'Ubicación Referencial'; 
+        loadedAreas.add(ClinicalArea(id: id, name: name, location: location));
+      }
+
+      if (mounted) {
+        setState(() {
+          _dynamicAreas = loadedAreas;
+          _isLoadingAreas = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingAreas = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al cargar las áreas')),
+        );
+      }
+    }
+  }
+
+  Future<void> _fetchStaffForArea(String areaId) async {
+    setState(() {
+      _isLoadingStaff = true;
+      _dynamicStaff = [];
+    });
+
+    try {
+      final response = await Supabase.instance.client
+          .from('empleados')
+          .select()
+          .eq('area_id', areaId);
+
+      final List<StaffMember> loadedStaff = [];
+      for (var row in response) {
+        final String name = row['nombre']?.toString() ?? 'Sin Nombre';
+        final String role = row['cargo']?.toString() ?? 'Sin Cargo';
+        final String id = row['id']?.toString() ?? name.toLowerCase().replaceAll(' ', '_');
+        
+        loadedStaff.add(StaffMember(
+          id: id,
+          sedeId: _selectedSede!.id,
+          areaId: areaId,
+          name: name,
+          role: role,
+        ));
+      }
+
+      if (mounted) {
+        setState(() {
+          _dynamicStaff = loadedStaff;
+          _isLoadingStaff = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingStaff = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al cargar el staff')),
+        );
+      }
+    }
   }
 
   @override
@@ -406,106 +532,146 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
   }
 
   Widget _buildSedeSection() {
+    if (_isLoadingSedes) {
+      return const Padding(
+        padding: EdgeInsets.all(40.0),
+        child: Center(
+          child: CircularProgressIndicator(color: AppColors.main1),
+        ),
+      );
+    }
+
+    if (_dynamicSedes.isEmpty) {
+      return const Center(
+        child: Text('No hay sedes disponibles'),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 8),
-        Row(
-          children: sedes.map((sede) {
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 0.9,
+          ),
+          itemCount: _dynamicSedes.length,
+          itemBuilder: (context, index) {
+            final sede = _dynamicSedes[index];
             final isSelected = _selectedSede == sede;
-            return Expanded(
-              child: Padding(
-                padding: EdgeInsets.only(
-                  right: sede == sedes.first ? 8.0 : 0.0,
-                  left: sede == sedes.last ? 8.0 : 0.0,
-                ),
-                child: InkWell(
-                  onTap: () {
-                    setState(() {
-                      if (_selectedSede != sede) {
-                        _selectedSede = sede;
-                        _selectedUpss = null; // Reset dependants
-                        _selectedStaff = null;
-                        _upssPage = 0;
-                        _staffPage = 0;
-                      }
-                    });
-                  },
-                  borderRadius: BorderRadius.circular(16),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 7, sigmaY: 7),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? AppColors.main1.withOpacity(0.8)
-                              : Colors.white.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.4),
-                            width: 1,
-                          ),
-                          boxShadow: isSelected
-                              ? [
-                                  BoxShadow(
-                                    color: AppColors.main1.withOpacity(0.2),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ]
-                              : [],
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Image.asset(
-                              sede.imagePath,
-                              height: 130,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  Container(
-                                    height: 100,
-                                    color: Colors.grey[200],
-                                    child: const Icon(
-                                      Icons.image_not_supported,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.all(12.0),
-                              child: Text(
-                                sede.name,
-                                textAlign: TextAlign.center,
-                                style: GoogleFonts.publicSans(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                  color: isSelected
-                                      ? Colors.white
-                                      : AppColors.primaryBrown,
+            return InkWell(
+              onTap: () {
+                setState(() {
+                  if (_selectedSede != sede) {
+                    _selectedSede = sede;
+                    _selectedUpss = null;
+                    _selectedStaff = null;
+                    _upssPage = 0;
+                    _staffPage = 0;
+                  }
+                });
+                _fetchAreasForSede(sede.id);
+              },
+              borderRadius: BorderRadius.circular(16),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 7, sigmaY: 7),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? AppColors.main1.withOpacity(0.8)
+                          : Colors.white.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.4),
+                        width: 1,
+                      ),
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: AppColors.main1.withOpacity(0.2),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ]
+                          : [],
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          child: Image.asset(
+                            sede.imagePath,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => Container(
+                              color: isSelected
+                                  ? Colors.white.withOpacity(0.2)
+                                  : AppColors.main1.withOpacity(0.1),
+                              child: Center(
+                                child: Icon(
+                                  Icons.domain,
+                                  color: isSelected ? Colors.white : AppColors.main1,
+                                  size: 48,
                                 ),
                               ),
                             ),
-                          ],
+                          ),
                         ),
-                      ),
+                        Padding(
+                          padding: const EdgeInsets.all(12.0),
+                          child: Text(
+                            sede.name,
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.publicSans(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: isSelected
+                                  ? Colors.white
+                                  : AppColors.primaryBrown,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ),
             );
-          }).toList(),
+          },
         ),
       ],
     );
   }
 
   Widget _buildUpssSection() {
-    final totalUpssPages = (clinicalAreas.length / _upssPerPage).ceil();
+    if (_isLoadingAreas) {
+      return const Padding(
+        padding: EdgeInsets.all(40.0),
+        child: Center(
+          child: CircularProgressIndicator(color: AppColors.main1),
+        ),
+      );
+    }
+
+    if (_dynamicAreas.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 24.0),
+          child: Text('No hay UPSS registradas para esta sede.'),
+        ),
+      );
+    }
+
+    final totalUpssPages = (_dynamicAreas.length / _upssPerPage).ceil();
     final start = _upssPage * _upssPerPage;
-    final displayUpss = clinicalAreas.skip(start).take(_upssPerPage).toList();
+    final displayUpss = _dynamicAreas.skip(start).take(_upssPerPage).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -514,12 +680,12 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
         PrevalenciasSearchBar(
           controller: _upssSearchController,
           hintText: 'Buscar UPSS...',
-          itemCount: clinicalAreas.length,
+          itemCount: _dynamicAreas.length,
           padding: const EdgeInsets.only(bottom: 0),
           suggestionsBuilder:
               (BuildContext context, SearchController controller) {
                 final String keyword = controller.value.text.toLowerCase();
-                final List<ClinicalArea> filteredUpss = clinicalAreas.where((
+                final List<ClinicalArea> filteredUpss = _dynamicAreas.where((
                   area,
                 ) {
                   return area.name.toLowerCase().contains(keyword);
@@ -565,6 +731,7 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
                         _selectedStaff = null;
                         _staffPage = 0;
                       });
+                      _fetchStaffForArea(area.id);
                     },
                   );
                 }).toList();
@@ -658,6 +825,7 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
                               _selectedStaff = null;
                               _staffPage = 0;
                             });
+                            _fetchStaffForArea(area.id);
                           },
                         ),
                       ),
@@ -685,17 +853,20 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
   }
 
   Widget _buildStaffSection() {
-    // Only show staff for the selected area; if none selected, empty list.
-    final List<StaffMember> areaStaff =
-        (_selectedSede != null && _selectedUpss != null)
-        ? getStaffForArea(_selectedSede!.id, _selectedUpss!.id)
-        : [];
+    if (_isLoadingStaff) {
+      return const Padding(
+        padding: EdgeInsets.all(40.0),
+        child: Center(
+          child: CircularProgressIndicator(color: AppColors.main1),
+        ),
+      );
+    }
 
-    final totalStaffPages = areaStaff.isEmpty
+    final totalStaffPages = _dynamicStaff.isEmpty
         ? 1
-        : (areaStaff.length / _staffPerPage).ceil();
+        : (_dynamicStaff.length / _staffPerPage).ceil();
     final start = _staffPage * _staffPerPage;
-    final displayStaff = areaStaff.skip(start).take(_staffPerPage).toList();
+    final displayStaff = _dynamicStaff.skip(start).take(_staffPerPage).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -704,12 +875,12 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
         PrevalenciasSearchBar(
           controller: _staffSearchController,
           hintText: 'Buscar Miembro del staff...',
-          itemCount: areaStaff.length,
+          itemCount: _dynamicStaff.length,
           padding: const EdgeInsets.only(bottom: 0),
           suggestionsBuilder:
               (BuildContext context, SearchController controller) {
                 final String keyword = controller.value.text.toLowerCase();
-                final List<StaffMember> filteredStaff = areaStaff.where((
+                final List<StaffMember> filteredStaff = _dynamicStaff.where((
                   staff,
                 ) {
                   return staff.name.toLowerCase().contains(keyword);
@@ -892,7 +1063,7 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
           },
         ),
         const SizedBox(height: 12),
-        if (areaStaff.length > _staffPerPage)
+        if (_dynamicStaff.length > _staffPerPage)
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
