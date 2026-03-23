@@ -8,7 +8,6 @@ import 'package:prevalencias/widgets/prevalencias_app_bar.dart';
 import 'dart:ui';
 import 'new_evaluation_page.dart';
 import 'dashboard_page.dart';
-import 'package:prevalencias/data/app_data.dart';
 import 'package:prevalencias/login_page.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -391,7 +390,10 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
   late SearchController _searchController;
   int _currentFormIndex = 0;
   int _currentStaffIndex = 0;
+  
   List<StaffMember> _areaStaff = [];
+  List<FormCategory> _dynamicFormCategories = [];
+  bool _isLoadingData = true;
 
   @override
   void initState() {
@@ -403,14 +405,81 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
       });
       return;
     }
-    _areaStaff = getStaffForArea(_session!.sede.id, _session!.area.id);
-    _currentStaffIndex = _areaStaff.indexWhere(
-      (s) => s.id == _session!.staff.id,
-    );
-    if (_currentStaffIndex < 0) _currentStaffIndex = 0;
-    _staffPageController = PageController(initialPage: _currentStaffIndex);
+    _staffPageController = PageController();
     _searchController = SearchController();
-    _syncObservations();
+    _loadEvaluationData();
+  }
+
+  Future<void> _loadEvaluationData() async {
+    try {
+      final supabase = Supabase.instance.client;
+      
+      final staffResponse = await supabase
+          .from('empleados')
+          .select()
+          .eq('area_id', _session!.area.id);
+
+      final List<StaffMember> loadedStaff = [];
+      for (var row in staffResponse) {
+        final name = row['nombre']?.toString() ?? 'Sin Nombre';
+        final role = row['cargo']?.toString() ?? 'Sin Cargo';
+        final id = row['id']?.toString() ?? name.replaceAll(' ', '_');
+        loadedStaff.add(StaffMember(
+          id: id,
+          sedeId: _session!.sede.id,
+          areaId: _session!.area.id,
+          name: name,
+          role: role,
+        ));
+      }
+
+      final formsResponse = await supabase.from('formularios').select().order('id', ascending: true);
+      final questionsResponse = await supabase.from('preguntas').select().order('orden', ascending: true);
+
+      final List<FormCategory> loadedForms = [];
+      for (var formRow in formsResponse) {
+        final formId = formRow['id'].toString();
+        final formTitle = formRow['nombre']?.toString() ?? 'Sin Título';
+
+        final matchingQuestions = questionsResponse.where((q) => q['formulario_id'].toString() == formId).toList();
+        final List<Question> parsedQuestions = [];
+
+        for (var qRow in matchingQuestions) {
+          final qId = qRow['id']?.toString() ?? qRow['orden'].toString();
+          final text = qRow['texto']?.toString() ?? '';
+          parsedQuestions.add(Question(id: qId, text: text));
+        }
+
+        loadedForms.add(FormCategory(
+          title: formTitle,
+          questions: parsedQuestions,
+        ));
+      }
+
+      if (mounted) {
+        setState(() {
+          _areaStaff = loadedStaff;
+          _dynamicFormCategories = loadedForms;
+          
+          _currentStaffIndex = _areaStaff.indexWhere((s) => s.id == _session!.staff.id);
+          if (_currentStaffIndex < 0) _currentStaffIndex = 0;
+          
+          _staffPageController.dispose();
+          _staffPageController = PageController(initialPage: _currentStaffIndex);
+          
+          _isLoadingData = false;
+        });
+        _syncObservations();
+      }
+    } catch (e) {
+      debugPrint('Error loading eval data: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al cargar datos remotos')),
+        );
+        setState(() => _isLoadingData = false);
+      }
+    }
   }
 
   @override
@@ -430,13 +499,31 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
       return const Scaffold(body: SizedBox.shrink());
     }
 
-    // Safety guard for form index
-    if (_currentFormIndex < 0) _currentFormIndex = 0;
-    if (_currentFormIndex >= _formCategories.length) {
-      _currentFormIndex = _formCategories.length - 1;
+    if (_isLoadingData) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF1F5F9),
+        appBar: const PrevalenciasAppBar(),
+        body: const Center(
+          child: CircularProgressIndicator(color: AppColors.main1),
+        ),
+      );
     }
 
-    FormCategory activeForm = _formCategories[_currentFormIndex];
+    if (_dynamicFormCategories.isEmpty) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF1F5F9),
+        appBar: const PrevalenciasAppBar(),
+        body: const Center(child: Text('No hay formularios configurados')),
+      );
+    }
+
+    // Safety guard for form index
+    if (_currentFormIndex < 0) _currentFormIndex = 0;
+    if (_currentFormIndex >= _dynamicFormCategories.length) {
+      _currentFormIndex = _dynamicFormCategories.length - 1;
+    }
+
+    FormCategory activeForm = _dynamicFormCategories[_currentFormIndex];
 
     // Calculate compliance for active form
     int totalQuestions = 0;
@@ -512,7 +599,7 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
                             : null,
                       ),
                       Text(
-                        '${_currentFormIndex + 1} / ${_formCategories.length}',
+                        '${_currentFormIndex + 1} / ${_dynamicFormCategories.length}',
                         style: GoogleFonts.inter(
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
@@ -524,11 +611,11 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
                         icon: const Icon(Icons.chevron_right, size: 20),
                         color: const Color(0xFF4596AB),
                         onPressed:
-                            _currentFormIndex < _formCategories.length - 1
+                            _currentFormIndex < _dynamicFormCategories.length - 1
                             ? () {
                                 setState(() {
                                   if (_currentFormIndex <
-                                      _formCategories.length - 1) {
+                                      _dynamicFormCategories.length - 1) {
                                     _currentFormIndex++;
                                   }
                                   _syncObservations();
@@ -544,7 +631,9 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
 
               // Questions
               ...activeForm.questions
-                  .map((q) => _buildQuestionCard(q))
+                  .asMap()
+                  .entries
+                  .map((entry) => _buildQuestionCard(entry.value, entry.key + 1))
                   .toList(),
 
               _buildObservationsSection(),
@@ -888,7 +977,7 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
     );
   }
 
-  Widget _buildQuestionCard(Question q) {
+  Widget _buildQuestionCard(Question q, int index) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(20),
@@ -900,7 +989,7 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '${q.id} ${q.text}',
+            '$index. ${q.text}',
             style: GoogleFonts.inter(
               fontSize: 15,
               fontWeight: FontWeight.w500,
@@ -920,14 +1009,16 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
           ] else ...[
             const SizedBox(height: 20),
             ...q.subQuestions!
+                .asMap()
+                .entries
                 .map(
-                  (sq) => Padding(
+                  (entry) => Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8.0),
                     child: Row(
                       children: [
                         Expanded(
                           child: Text(
-                            '${sq.id} ${sq.text}',
+                            '$index.${entry.key + 1}. ${entry.value.text}',
                             style: GoogleFonts.inter(
                               fontSize: 13,
                               color: const Color(0xFF3F484B),
@@ -941,7 +1032,7 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
                             children: [
                               Expanded(
                                 child: _buildMiniResponseButton(
-                                  sq.id,
+                                  entry.value.id,
                                   'Sí',
                                   true,
                                 ),
@@ -949,7 +1040,7 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: _buildMiniResponseButton(
-                                  sq.id,
+                                  entry.value.id,
                                   'No',
                                   false,
                                 ),
