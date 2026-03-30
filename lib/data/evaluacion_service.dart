@@ -29,7 +29,7 @@ class EvaluacionService {
   }) async {
     // Try to find existing set first.
     final existing = await _db
-        .from('evaluation_set')
+        .from('evaluacion_set')
         .select()
         .eq('empleado_id', empleadoId)
         .eq('periodo_id', periodoId)
@@ -42,7 +42,7 @@ class EvaluacionService {
     // Not found: attempt insert.
     try {
       final inserted = await _db
-          .from('evaluation_set')
+          .from('evaluacion_set')
           .insert({
             'empleado_id': empleadoId,
             'periodo_id': periodoId,
@@ -54,7 +54,7 @@ class EvaluacionService {
     } catch (_) {
       // Insert failed (likely uq_set race condition). Re-query and return.
       final fallback = await _db
-          .from('evaluation_set')
+          .from('evaluacion_set')
           .select()
           .eq('empleado_id', empleadoId)
           .eq('periodo_id', periodoId)

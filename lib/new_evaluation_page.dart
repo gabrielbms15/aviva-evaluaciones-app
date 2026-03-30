@@ -38,6 +38,43 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
   List<StaffMember> _dynamicStaff = [];
   bool _isLoadingStaff = false;
 
+  /// True while the 'Iniciar' button is waiting for Supabase.
+  bool _isStartingSession = false;
+
+  /// Runs the full set-lookup flow whenever the selected staff changes.
+  /// Sets [EvaluationRepository.activeSetId] and [.evaluaciones] in memory.
+  Future<void> _loadSetForStaff(StaffMember staff) async {
+    setState(() {
+      _selectedStaff = staff;
+      _isStartingSession = true;
+    });
+    try {
+      final periodoId = await EvaluacionService.getActivePeriodoId();
+      final evalSet = await EvaluacionService.findOrCreateSet(
+        empleadoId: staff.id,
+        periodoId: periodoId,
+      );
+      final evals = await EvaluacionService.getEvaluaciones(evalSet.id);
+      EvaluationRepository.instance.activeSetId = evalSet.id;
+      EvaluationRepository.instance.evaluaciones = evals;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Error al cargar el set de evaluación: $e',
+              style: const TextStyle(color: Colors.white),
+            ),
+            backgroundColor: const Color(0xFFBA1A1A),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isStartingSession = false);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -321,15 +358,19 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
   }
 
   Widget _buildActionButton(bool canContinue, bool isLastStep) {
+    // On the last step, the button is blocked while the session is loading.
+    final bool isWorking = isLastStep && _isStartingSession;
+    final bool enabled = canContinue && !isWorking;
+
     return SizedBox(
       height: MediaQuery.of(context).size.height * 0.05,
       child: Container(
         decoration: BoxDecoration(
-          color: canContinue
+          color: enabled
               ? AppColors.navyBlue.withOpacity(0.7)
               : Colors.grey.shade300,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: canContinue
+          boxShadow: enabled
               ? [
                   BoxShadow(
                     color: AppColors.navyBlue.withOpacity(0.3),
@@ -340,7 +381,7 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
               : [],
         ),
         child: ElevatedButton(
-          onPressed: canContinue
+          onPressed: enabled
               ? () async {
                   if (!isLastStep) {
                     _pageController.nextPage(
@@ -348,36 +389,13 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
                       curve: Curves.easeInOut,
                     );
                   } else {
-                    // Start session in memory first.
+                    // Session was already started by _loadSetForStaff.
+                    // Just start the EvaluationSession and navigate.
                     EvaluationRepository.instance.startSession(
                       _selectedSede!,
                       _selectedUpss!,
                       _selectedStaff!,
                     );
-                    try {
-                      // 1. Get active period.
-                      final periodoId =
-                          await EvaluacionService.getActivePeriodoId();
-
-                      // 2. Find or create evaluation_set.
-                      final evalSet =
-                          await EvaluacionService.findOrCreateSet(
-                        empleadoId: _selectedStaff!.id,
-                        periodoId: periodoId,
-                      );
-
-                      // 3. Load existing evaluaciones for this set.
-                      final evaluaciones =
-                          await EvaluacionService.getEvaluaciones(evalSet.id);
-
-                      // 4. Store in repository so AssessmentFormPage can use them.
-                      EvaluationRepository.instance.activeSetId = evalSet.id;
-                      EvaluationRepository.instance.evaluaciones = evaluaciones;
-                    } catch (e) {
-                      // Non-blocking: if Supabase fails, still allow navigation.
-                      debugPrint('EvaluacionService error: $e');
-                    }
-
                     if (mounted) {
                       Navigator.pushReplacementNamed(context, '/form');
                     }
@@ -391,15 +409,24 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
               borderRadius: BorderRadius.circular(16),
             ),
           ),
-          child: Text(
-            isLastStep ? 'Iniciar' : 'Continuar',
-            style: GoogleFonts.outfit(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.5,
-              color: canContinue ? Colors.white : Colors.grey.shade600,
-            ),
-          ),
+          child: isWorking
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
+              : Text(
+                  isLastStep ? 'Iniciar Evaluación' : 'Continuar',
+                  style: GoogleFonts.outfit(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.5,
+                    color: enabled ? Colors.white : Colors.grey.shade600,
+                  ),
+                ),
         ),
       ),
     );
@@ -949,9 +976,7 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
                     ),
                     onTap: () {
                       controller.closeView('');
-                      setState(() {
-                        _selectedStaff = staff;
-                      });
+                      _loadSetForStaff(staff);
                     },
                   );
                 }).toList();
@@ -1000,11 +1025,7 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
                     children: [
                       Positioned.fill(
                         child: InkWell(
-                          onTap: () {
-                            setState(() {
-                              _selectedStaff = staff;
-                            });
-                          },
+                          onTap: () => _loadSetForStaff(staff),
                           borderRadius: BorderRadius.circular(12),
                           child: Padding(
                             padding: const EdgeInsets.symmetric(

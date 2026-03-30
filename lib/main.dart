@@ -1452,7 +1452,7 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
 
       if (count >= _dynamicFormCategories.length && _dynamicFormCategories.isNotEmpty) {
         await supabase
-            .from('evaluation_set')
+            .from('evaluacion_set')
             .update({'estado': 'completo'})
             .eq('id', setId);
       }
