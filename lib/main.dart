@@ -23,6 +23,7 @@ Future<void> main() async {
 
 final List<FormCategory> _formCategories = [
   FormCategory(
+    id: 'legacy_1',
     title: 'LAVADO DE MANOS',
     questions: [
       Question(
@@ -86,6 +87,7 @@ final List<FormCategory> _formCategories = [
     ],
   ),
   FormCategory(
+    id: 'legacy_2',
     title: 'ADMINISTRACION SEGURA DE MEDICAMENTOS',
     questions: [
       Question(
@@ -120,6 +122,7 @@ final List<FormCategory> _formCategories = [
     ],
   ),
   FormCategory(
+    id: 'legacy_3',
     title: 'PREVENCION DEL RIESGO DE CAIDA',
     questions: [
       Question(
@@ -168,6 +171,7 @@ final List<FormCategory> _formCategories = [
     ],
   ),
   FormCategory(
+    id: 'legacy_4',
     title: 'IDENTIFICACION DEL PACIENTE',
     questions: [
       Question(
@@ -222,6 +226,7 @@ final List<FormCategory> _formCategories = [
     ],
   ),
   FormCategory(
+    id: 'legacy_5',
     title: 'COMUNICACIÓN SEGURA',
     questions: [
       Question(
@@ -271,6 +276,7 @@ final List<FormCategory> _formCategories = [
     ],
   ),
   FormCategory(
+    id: 'legacy_6',
     title: 'PREVENCION DE UPP',
     questions: [
       Question(
@@ -342,6 +348,8 @@ final List<FormCategory> _formCategories = [
     ],
   ),
 ];
+
+
 
 class ClinicalAssessmentApp extends StatelessWidget {
   const ClinicalAssessmentApp({super.key});
@@ -451,6 +459,7 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
         }
 
         loadedForms.add(FormCategory(
+          id: formId,
           title: formTitle,
           questions: parsedQuestions,
         ));
@@ -525,7 +534,7 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
 
     FormCategory activeForm = _dynamicFormCategories[_currentFormIndex];
 
-    // Calculate compliance for active form
+    // Calculate compliance for active form (counts 'SI' as compliant)
     int totalQuestions = 0;
     int compliantCount = 0;
 
@@ -533,19 +542,15 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
       if (q.subQuestions != null) {
         for (var sq in q.subQuestions!) {
           totalQuestions++;
-          final response = EvaluationRepository.instance.getResponse(
-            _currentFormIndex,
-            sq.id,
-          );
-          if (response == true) compliantCount++;
+          if (EvaluationRepository.instance.getResponse(_currentFormIndex, sq.id) == 'SI') {
+            compliantCount++;
+          }
         }
       } else {
         totalQuestions++;
-        final response = EvaluationRepository.instance.getResponse(
-          _currentFormIndex,
-          q.id,
-        );
-        if (response == true) compliantCount++;
+        if (EvaluationRepository.instance.getResponse(_currentFormIndex, q.id) == 'SI') {
+          compliantCount++;
+        }
       }
     }
 
@@ -566,75 +571,211 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
               const SizedBox(height: 32),
 
               // Form Header with Navigation
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Expanded(
-                    child: Text(
-                      activeForm.title,
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.2,
-                        color: const Color(0xFF3F484B),
-                      ),
+              Builder(builder: (context) {
+                // Check if this form has been completed.
+                final formId = activeForm.id;
+                final matchingEval = EvaluationRepository.instance.evaluaciones
+                    .where((e) =>
+                        e.formularioId == formId && e.estado == 'completado')
+                    .toList();
+                final isCompleted = matchingEval.isNotEmpty;
+                final evaluadorNombre = isCompleted
+                    ? (matchingEval.first.evaluadorNombre ?? 'Evaluador')
+                    : null;
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: Row(
+                            children: [
+                              // Status dot
+                              Container(
+                                width: 8,
+                                height: 8,
+                                margin: const EdgeInsets.only(right: 6),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: isCompleted
+                                      ? const Color(0xFF34C759)
+                                      : Colors.grey.shade400,
+                                ),
+                              ),
+                              Expanded(
+                                child: Text(
+                                  activeForm.title,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 1.2,
+                                    color: const Color(0xFF3F484B),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Status pill badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          margin: const EdgeInsets.only(right: 4),
+                          decoration: BoxDecoration(
+                            color: isCompleted
+                                ? const Color(0xFF34C759).withOpacity(0.15)
+                                : Colors.grey.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                isCompleted
+                                    ? Icons.check_circle_rounded
+                                    : Icons.radio_button_unchecked_rounded,
+                                size: 10,
+                                color: isCompleted
+                                    ? const Color(0xFF34C759)
+                                    : Colors.grey.shade500,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                isCompleted ? 'Completado' : 'Pendiente',
+                                style: GoogleFonts.inter(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w600,
+                                  color: isCompleted
+                                      ? const Color(0xFF1A8C3C)
+                                      : Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              visualDensity: VisualDensity.compact,
+                              icon: const Icon(Icons.chevron_left, size: 20),
+                              color: const Color(0xFF4596AB),
+                              onPressed: _currentFormIndex > 0
+                                  ? () {
+                                      setState(() {
+                                        if (_currentFormIndex > 0) {
+                                          _currentFormIndex--;
+                                        }
+                                        _syncObservations();
+                                      });
+                                    }
+                                  : null,
+                            ),
+                            Text(
+                              '${_currentFormIndex + 1} / ${_dynamicFormCategories.length}',
+                              style: GoogleFonts.inter(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFF4596AB),
+                              ),
+                            ),
+                            IconButton(
+                              visualDensity: VisualDensity.compact,
+                              icon: const Icon(Icons.chevron_right, size: 20),
+                              color: const Color(0xFF4596AB),
+                              onPressed: _currentFormIndex <
+                                      _dynamicFormCategories.length - 1
+                                  ? () {
+                                      setState(() {
+                                        if (_currentFormIndex <
+                                            _dynamicFormCategories.length - 1) {
+                                          _currentFormIndex++;
+                                        }
+                                        _syncObservations();
+                                      });
+                                    }
+                                  : null,
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                  ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        visualDensity: VisualDensity.compact,
-                        icon: const Icon(Icons.chevron_left, size: 20),
-                        color: const Color(0xFF4596AB),
-                        onPressed: _currentFormIndex > 0
-                            ? () {
-                                setState(() {
-                                  if (_currentFormIndex > 0) {
-                                    _currentFormIndex--;
-                                  }
-                                  _syncObservations();
-                                });
-                              }
-                            : null,
-                      ),
-                      Text(
-                        '${_currentFormIndex + 1} / ${_dynamicFormCategories.length}',
-                        style: GoogleFonts.inter(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF4596AB),
+                    const SizedBox(height: 16),
+
+                    // Completed banner
+                    if (isCompleted)
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 10),
+                            decoration: BoxDecoration(
+                              color:
+                                  const Color(0xFF34C759).withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: const Color(0xFF34C759).withOpacity(0.3),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.verified_rounded,
+                                    color: Color(0xFF1A8C3C), size: 18),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Formulario completado',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: const Color(0xFF1A8C3C),
+                                        ),
+                                      ),
+                                      Text(
+                                        'Evaluado por: $evaluadorNombre',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 11,
+                                          color: const Color(0xFF1A8C3C)
+                                              .withOpacity(0.8),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
-                      IconButton(
-                        visualDensity: VisualDensity.compact,
-                        icon: const Icon(Icons.chevron_right, size: 20),
-                        color: const Color(0xFF4596AB),
-                        onPressed:
-                            _currentFormIndex < _dynamicFormCategories.length - 1
-                            ? () {
-                                setState(() {
-                                  if (_currentFormIndex <
-                                      _dynamicFormCategories.length - 1) {
-                                    _currentFormIndex++;
-                                  }
-                                  _syncObservations();
-                                });
-                              }
-                            : null,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
 
-              // Questions
-              ...activeForm.questions
-                  .asMap()
-                  .entries
-                  .map((entry) => _buildQuestionCard(entry.value, entry.key + 1))
-                  .toList(),
+                    // Questions — blocked if completed
+                    AbsorbPointer(
+                      absorbing: isCompleted,
+                      child: Opacity(
+                        opacity: isCompleted ? 0.6 : 1.0,
+                        child: Column(
+                          children: activeForm.questions
+                              .asMap()
+                              .entries
+                              .map((entry) =>
+                                  _buildQuestionCard(entry.value, entry.key + 1))
+                              .toList(),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              }),
+
 
               _buildObservationsSection(),
               const SizedBox(height: 48),
@@ -754,15 +895,21 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'EVALUACIÓN ACTIVA',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFFAEECFF),
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 2,
-                      ),
-                    ),
+                    Builder(builder: (ctx) {
+                      final isAllDone = EvaluationRepository.instance.evaluaciones.length >= _dynamicFormCategories.length
+                          && _dynamicFormCategories.isNotEmpty
+                          && EvaluationRepository.instance.evaluaciones
+                              .every((e) => e.estado == 'completado');
+                      return Text(
+                        isAllDone ? 'EVALUACIÓN COMPLETADA' : 'EVALUACIÓN ACTIVA',
+                        style: GoogleFonts.inter(
+                          color: isAllDone ? const Color(0xFF34C759) : const Color(0xFFAEECFF),
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 2,
+                        ),
+                      );
+                    }),
                     const SizedBox(height: 16),
                     Row(
                       children: [
@@ -1001,9 +1148,11 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
             const SizedBox(height: 20),
             Row(
               children: [
-                Expanded(child: _buildResponseButton(q.id, 'Sí', true)),
-                const SizedBox(width: 12),
-                Expanded(child: _buildResponseButton(q.id, 'No', false)),
+                Expanded(child: _buildResponseButton(q.id, 'Sí', 'SI')),
+                const SizedBox(width: 8),
+                Expanded(child: _buildResponseButton(q.id, 'No', 'NO')),
+                const SizedBox(width: 8),
+                Expanded(child: _buildResponseButton(q.id, 'N/A', 'NO_APLICA')),
               ],
             ),
           ] else ...[
@@ -1027,25 +1176,33 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
                         ),
                         const SizedBox(width: 12),
                         SizedBox(
-                          width: 120,
+                          width: 170,
                           child: Row(
                             children: [
                               Expanded(
                                 child: _buildMiniResponseButton(
                                   entry.value.id,
                                   'Sí',
-                                  true,
+                                  'SI',
                                 ),
                               ),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: 4),
                               Expanded(
                                 child: _buildMiniResponseButton(
                                   entry.value.id,
                                   'No',
-                                  false,
+                                  'NO',
                                 ),
                               ),
-                            ].toList(),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: _buildMiniResponseButton(
+                                  entry.value.id,
+                                  'N/A',
+                                  'NO_APLICA',
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -1059,30 +1216,37 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
     );
   }
 
-  Widget _buildResponseButton(String qId, String label, bool value) {
-    bool isSelected =
-        EvaluationRepository.instance.getResponse(_currentFormIndex, qId) ==
-        value;
-    Color activeColor = value
-        ? const Color(0xFF9DE1FD)
-        : const Color(0xFFFFDAD6);
-    Color activeTextColor = value
-        ? const Color(0xFF13657E)
-        : const Color(0xFF93000A);
-    Color activeBorderColor = value
-        ? const Color(0xFF15667F)
-        : const Color(0xFFBA1A1A);
+  /// Builds a full-width 3-column response button group (Sí / No / N/A).
+  Widget _buildResponseButton(String qId, String label, String value) {
+    final currentVal = EvaluationRepository.instance.getResponse(_currentFormIndex, qId);
+    final bool isSelected = currentVal == value;
+
+    final Map<String, Color> bgColors = {
+      'SI': const Color(0xFF9DE1FD),
+      'NO': const Color(0xFFFFDAD6),
+      'NO_APLICA': const Color(0xFFFFF3CD),
+    };
+    final Map<String, Color> textColors = {
+      'SI': const Color(0xFF13657E),
+      'NO': const Color(0xFF93000A),
+      'NO_APLICA': const Color(0xFF7A5800),
+    };
+    final Map<String, Color> borderColors = {
+      'SI': const Color(0xFF15667F),
+      'NO': const Color(0xFFBA1A1A),
+      'NO_APLICA': const Color(0xFFC49000),
+    };
+
+    final activeColor = bgColors[value] ?? Colors.grey.shade200;
+    final activeTextColor = textColors[value] ?? Colors.black87;
+    final activeBorderColor = borderColors[value] ?? Colors.grey;
 
     return GestureDetector(
       onTap: () => setState(() {
-        final cur = EvaluationRepository.instance.getResponse(
-          _currentFormIndex,
-          qId,
-        );
         EvaluationRepository.instance.saveResponse(
           _currentFormIndex,
           qId,
-          cur == value ? null : value,
+          isSelected ? null : value,
         );
       }),
       child: AnimatedContainer(
@@ -1108,27 +1272,29 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
     );
   }
 
-  Widget _buildMiniResponseButton(String qId, String label, bool value) {
-    bool isSelected =
-        EvaluationRepository.instance.getResponse(_currentFormIndex, qId) ==
-        value;
-    Color activeColor = value
-        ? const Color(0xFF9DE1FD)
-        : const Color(0xFFFFDAD6);
-    Color activeTextColor = value
-        ? const Color(0xFF13657E)
-        : const Color(0xFF93000A);
+  Widget _buildMiniResponseButton(String qId, String label, String value) {
+    final currentVal = EvaluationRepository.instance.getResponse(_currentFormIndex, qId);
+    final bool isSelected = currentVal == value;
+
+    final Map<String, Color> bgColors = {
+      'SI': const Color(0xFF9DE1FD),
+      'NO': const Color(0xFFFFDAD6),
+      'NO_APLICA': const Color(0xFFFFF3CD),
+    };
+    final Map<String, Color> textColors = {
+      'SI': const Color(0xFF13657E),
+      'NO': const Color(0xFF93000A),
+      'NO_APLICA': const Color(0xFF7A5800),
+    };
+    final activeColor = bgColors[value] ?? Colors.grey.shade200;
+    final activeTextColor = textColors[value] ?? Colors.black87;
 
     return GestureDetector(
       onTap: () => setState(() {
-        final cur = EvaluationRepository.instance.getResponse(
-          _currentFormIndex,
-          qId,
-        );
         EvaluationRepository.instance.saveResponse(
           _currentFormIndex,
           qId,
-          cur == value ? null : value,
+          isSelected ? null : value,
         );
       }),
       child: AnimatedContainer(
@@ -1142,7 +1308,7 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
         child: Text(
           label,
           style: GoogleFonts.inter(
-            fontSize: 12,
+            fontSize: 11,
             fontWeight: FontWeight.bold,
             color: isSelected ? activeTextColor : const Color(0xFF3F484B),
           ),
@@ -1207,12 +1373,151 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
     );
   }
 
+  bool _isSaving = false;
+
+  Future<void> _saveFormToSupabase() async {
+    final activeForm = _dynamicFormCategories[_currentFormIndex];
+    final repo = EvaluationRepository.instance;
+    final setId = repo.activeSetId;
+    final evaluadorId = Supabase.instance.client.auth.currentUser?.id;
+
+    // ── 1. Validate all questions answered ──────────────────────────────
+    final allQuestions = <Question>[];
+    for (final q in activeForm.questions) {
+      if (q.subQuestions != null) {
+        allQuestions.addAll(q.subQuestions!);
+      } else {
+        allQuestions.add(q);
+      }
+    }
+    final unanswered = allQuestions
+        .where((q) => repo.getResponse(_currentFormIndex, q.id) == null)
+        .toList();
+    if (unanswered.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Faltan ${unanswered.length} pregunta(s) sin responder.',
+            style: GoogleFonts.inter(color: Colors.white),
+          ),
+          backgroundColor: const Color(0xFFBA1A1A),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    if (setId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error: sesión sin set activo.')),
+      );
+      return;
+    }
+
+    setState(() => _isSaving = true);
+    String? evaluacionId;
+
+    try {
+      final supabase = Supabase.instance.client;
+
+      // ── 2. Insert into evaluaciones ──────────────────────────────────
+      final evalRow = await supabase
+          .from('evaluaciones')
+          .insert({
+            'set_id': setId,
+            'formulario_id': activeForm.id,
+            'evaluador_id': evaluadorId,
+            'estado': 'completado',
+          })
+          .select('id')
+          .single();
+      evaluacionId = evalRow['id'].toString();
+
+      // ── 3. Insert respuestas ─────────────────────────────────────────
+      final respuestasPayload = allQuestions.map((q) {
+        return {
+          'evaluacion_id': evaluacionId,
+          'pregunta_id': q.id,
+          'valor': repo.getResponse(_currentFormIndex, q.id),
+        };
+      }).toList();
+      await supabase.from('respuestas').insert(respuestasPayload);
+
+      // ── 4. Check if all forms complete → update set estado ───────────
+      final evalCount = await supabase
+          .from('evaluaciones')
+          .select('id')
+          .eq('set_id', setId);
+      final int count = (evalCount as List).length;
+
+      if (count >= _dynamicFormCategories.length && _dynamicFormCategories.isNotEmpty) {
+        await supabase
+            .from('evaluation_set')
+            .update({'estado': 'completo'})
+            .eq('id', setId);
+      }
+
+      // ── 5. Refresh evaluaciones in memory ────────────────────────────
+      final updatedEvals = await supabase
+          .from('evaluaciones')
+          .select('*, perfiles(nombre)')
+          .eq('set_id', setId);
+      repo.evaluaciones = (updatedEvals as List)
+          .map((row) => EvaluacionRecord.fromJson(row))
+          .toList();
+
+      if (mounted) {
+        setState(() => _isSaving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '✓ Formulario guardado correctamente.',
+              style: GoogleFonts.inter(color: Colors.white),
+            ),
+            backgroundColor: const Color(0xFF1A8C3C),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      // ── Rollback: delete the evaluacion row if respuestas failed ──────
+      if (evaluacionId != null) {
+        try {
+          await Supabase.instance.client
+              .from('evaluaciones')
+              .delete()
+              .eq('id', evaluacionId);
+        } catch (_) {}
+      }
+      if (mounted) {
+        setState(() => _isSaving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Error al guardar: $e',
+              style: GoogleFonts.inter(color: Colors.white),
+            ),
+            backgroundColor: const Color(0xFFBA1A1A),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
   Widget _buildFinishButton() {
+    // Determine if this form is already completed.
+    final activeForm = _dynamicFormCategories[_currentFormIndex];
+    final isFormCompleted = EvaluationRepository.instance.evaluaciones
+        .any((e) => e.formularioId == activeForm.id && e.estado == 'completado');
+
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF006578), Color(0xFF287E93)],
+        gradient: LinearGradient(
+          colors: isFormCompleted
+              ? [Colors.grey.shade400, Colors.grey.shade500]
+              : [const Color(0xFF006578), const Color(0xFF287E93)],
         ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
@@ -1224,23 +1529,31 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
         ],
       ),
       child: ElevatedButton(
-        onPressed: () {},
+        onPressed: (isFormCompleted || _isSaving) ? null : _saveFormToSupabase,
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.transparent,
           shadowColor: Colors.transparent,
+          disabledBackgroundColor: Colors.transparent,
           padding: const EdgeInsets.symmetric(vertical: 20),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
         ),
-        child: Text(
-          'Finish Evaluation',
-          style: GoogleFonts.publicSans(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
+        child: _isSaving
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                    color: Colors.white, strokeWidth: 2.5),
+              )
+            : Text(
+                isFormCompleted ? 'Formulario Completado' : 'Guardar Formulario',
+                style: GoogleFonts.publicSans(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
       ),
     );
   }

@@ -1,15 +1,17 @@
 import 'package:prevalencias/models/models.dart';
 
 /// In-memory repository for the active evaluation session.
-///
-/// Today: stores one active session in RAM.
-/// Future migration path: swap this class body for a Hive/Supabase
-/// implementation — callers (pages) won't need to change at all.
 class EvaluationRepository {
   EvaluationRepository._();
   static final EvaluationRepository instance = EvaluationRepository._();
 
   EvaluationSession? _activeSession;
+
+  /// ID of the active `evaluation_set` row in Supabase.
+  String? activeSetId;
+
+  /// Records from `evaluaciones` for the active set (populated on session start).
+  List<EvaluacionRecord> evaluaciones = [];
 
   /// Returns the currently active session, or null if none.
   EvaluationSession? get activeSession => _activeSession;
@@ -19,15 +21,15 @@ class EvaluationRepository {
     _activeSession = EvaluationSession(sede: sede, area: area, staff: staff);
   }
 
-  /// Saves a response for a question in the active session.
+  /// Saves a response ('SI', 'NO', 'NO_APLICA', or null) for a question.
   /// [formIndex] — index of the FormCategory (0-based).
-  /// [questionId] — the question's id string (e.g. '1.', '4.2').
-  void saveResponse(int formIndex, String questionId, bool? value) {
+  /// [questionId] — the question's uuid from Supabase.
+  void saveResponse(int formIndex, String questionId, String? value) {
     _activeSession?.responses['${formIndex}_$questionId'] = value;
   }
 
   /// Reads a response from the active session.
-  bool? getResponse(int formIndex, String questionId) =>
+  String? getResponse(int formIndex, String questionId) =>
       _activeSession?.responses['${formIndex}_$questionId'];
 
   /// Saves an observation note for a form in the active session.
@@ -39,6 +41,12 @@ class EvaluationRepository {
   String getObservation(int formIndex) =>
       _activeSession?.observations['$formIndex'] ?? '';
 
-  /// Clears the active session.
-  void clearSession() => _activeSession = null;
+  /// Clears the active session and evaluation set state.
+  void clearSession() {
+    _activeSession = null;
+    activeSetId = null;
+    evaluaciones = [];
+  }
 }
+
+

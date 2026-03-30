@@ -6,6 +6,7 @@ import 'package:prevalencias/widgets/prevalencias_app_bar.dart';
 import 'package:prevalencias/widgets/prevalencias_search_bar.dart';
 import 'package:prevalencias/data/app_data.dart';
 import 'package:prevalencias/data/evaluation_repository.dart';
+import 'package:prevalencias/data/evaluacion_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:ui';
 
@@ -340,19 +341,46 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
         ),
         child: ElevatedButton(
           onPressed: canContinue
-              ? () {
+              ? () async {
                   if (!isLastStep) {
                     _pageController.nextPage(
                       duration: const Duration(milliseconds: 300),
                       curve: Curves.easeInOut,
                     );
                   } else {
+                    // Start session in memory first.
                     EvaluationRepository.instance.startSession(
                       _selectedSede!,
                       _selectedUpss!,
                       _selectedStaff!,
                     );
-                    Navigator.pushReplacementNamed(context, '/form');
+                    try {
+                      // 1. Get active period.
+                      final periodoId =
+                          await EvaluacionService.getActivePeriodoId();
+
+                      // 2. Find or create evaluation_set.
+                      final evalSet =
+                          await EvaluacionService.findOrCreateSet(
+                        empleadoId: _selectedStaff!.id,
+                        periodoId: periodoId,
+                      );
+
+                      // 3. Load existing evaluaciones for this set.
+                      final evaluaciones =
+                          await EvaluacionService.getEvaluaciones(evalSet.id);
+
+                      // 4. Store in repository so AssessmentFormPage can use them.
+                      EvaluationRepository.instance.activeSetId = evalSet.id;
+                      EvaluationRepository.instance.evaluaciones = evaluaciones;
+                    } catch (e) {
+                      // Non-blocking: if Supabase fails, still allow navigation.
+                      debugPrint('EvaluacionService error: $e');
+                    }
+
+                    if (mounted) {
+                      Navigator.pushReplacementNamed(context, '/form');
+                    }
                   }
                 }
               : null,

@@ -94,10 +94,11 @@ class StaffMember {
 }
 
 class FormCategory {
+  final String id;
   final String title;
   final List<Question> questions;
 
-  const FormCategory({required this.title, required this.questions});
+  const FormCategory({required this.id, required this.title, required this.questions});
 }
 
 /// Represents a single evaluation session for one staff member in one area.
@@ -109,8 +110,8 @@ class EvaluationSession {
   final StaffMember staff;
   final DateTime startedAt;
 
-  /// Responses keyed by: '{formIndex}_{questionId}'
-  final Map<String, bool?> responses;
+  /// Responses keyed by: '{formIndex}_{questionId}' → 'SI' | 'NO' | 'NO_APLICA' | null
+  final Map<String, String?> responses;
 
   /// Observations keyed by formIndex as string
   final Map<String, String> observations;
@@ -120,7 +121,7 @@ class EvaluationSession {
     required this.area,
     required this.staff,
     DateTime? startedAt,
-    Map<String, bool?>? responses,
+    Map<String, String?>? responses,
     Map<String, String>? observations,
   })  : startedAt = startedAt ?? DateTime.now(),
         responses = responses ?? {},
@@ -131,4 +132,54 @@ class EvaluationSession {
     final date = startedAt.toIso8601String().substring(0, 10);
     return 'eval_${sede.id}_${area.id}_${staff.id}_$date';
   }
+}
+
+class EvaluationSet {
+  final String id;
+  final String empleadoId;
+  final String periodoId;
+  final String estado;
+
+  const EvaluationSet({
+    required this.id,
+    required this.empleadoId,
+    required this.periodoId,
+    required this.estado,
+  });
+
+  factory EvaluationSet.fromJson(Map<String, dynamic> json) => EvaluationSet(
+        id: json['id'].toString(),
+        empleadoId: json['empleado_id'].toString(),
+        periodoId: json['periodo_id'].toString(),
+        estado: json['estado']?.toString() ?? 'incompleto',
+      );
+}
+
+class EvaluacionRecord {
+  final String id;
+  final String setId;
+  final String formularioId;
+  final String? evaluadorId;
+  final String? evaluadorNombre;
+  final String estado;
+
+  const EvaluacionRecord({
+    required this.id,
+    required this.setId,
+    required this.formularioId,
+    this.evaluadorId,
+    this.evaluadorNombre,
+    required this.estado,
+  });
+
+  factory EvaluacionRecord.fromJson(Map<String, dynamic> json) => EvaluacionRecord(
+        id: json['id'].toString(),
+        setId: json['set_id'].toString(),
+        formularioId: json['formulario_id'].toString(),
+        evaluadorId: json['evaluador_id']?.toString(),
+        evaluadorNombre: json['perfiles'] != null
+            ? json['perfiles']['nombre']?.toString()
+            : null,
+        estado: json['estado']?.toString() ?? 'pendiente',
+      );
 }
