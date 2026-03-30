@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:prevalencias/core/app_colors.dart';
 import 'package:prevalencias/data/evaluation_repository.dart';
+import 'package:prevalencias/data/evaluacion_service.dart';
 import 'package:prevalencias/models/models.dart';
 import 'package:prevalencias/widgets/prevalencias_search_bar.dart';
 import 'package:prevalencias/widgets/prevalencias_app_bar.dart';
@@ -398,7 +399,10 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
   late SearchController _searchController;
   int _currentFormIndex = 0;
   int _currentStaffIndex = 0;
-  
+
+  /// True while the service is fetching the set + evaluaciones for a new staff.
+  bool _isLoadingSet = false;
+
   List<StaffMember> _areaStaff = [];
   List<FormCategory> _dynamicFormCategories = [];
   bool _isLoadingData = true;
@@ -845,23 +849,54 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
     );
   }
 
-  void _switchToStaff(int index) {
+  /// Switches to the staff at [index] and refreshes the evaluation set + evaluaciones
+  /// from Supabase so all per-employee state is always up to date.
+  Future<void> _switchToStaff(int index) async {
+    if (index == _currentStaffIndex && !_isLoadingData) return;
+
     setState(() {
       _currentStaffIndex = index;
-      // Update the active session to reflect the newly selected staff
-      EvaluationRepository.instance.startSession(
-        _session!.sede,
-        _session!.area,
-        _areaStaff[index],
-      );
-      _session = EvaluationRepository.instance.activeSession;
-      _staffPageController.animateToPage(
-        index,
-        duration: const Duration(milliseconds: 400),
-        curve: Curves.easeInOut,
-      );
-      _syncObservations();
+      _isLoadingSet = true;
     });
+
+    // Update the active session to the new staff member.
+    EvaluationRepository.instance.startSession(
+      _session!.sede,
+      _session!.area,
+      _areaStaff[index],
+    );
+    _session = EvaluationRepository.instance.activeSession;
+
+    _staffPageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeInOut,
+    );
+    _syncObservations();
+
+    try {
+      final periodoId = await EvaluacionService.getActivePeriodoId();
+      final evalSet = await EvaluacionService.findOrCreateSet(
+        empleadoId: _areaStaff[index].id,
+        periodoId: periodoId,
+      );
+      final evals = await EvaluacionService.getEvaluaciones(evalSet.id);
+      EvaluationRepository.instance.activeSetId = evalSet.id;
+      EvaluationRepository.instance.evaluaciones = evals;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al cargar set de evaluación: $e',
+                style: const TextStyle(color: Colors.white)),
+            backgroundColor: const Color(0xFFBA1A1A),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoadingSet = false);
+    }
   }
 
   // ── HERO SECTION (swipeable carousel + dots) ───────────
@@ -870,142 +905,173 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
     final area = _session!.area;
     return Column(
       children: [
-        _buildSearchBar(),
-        Container(
-          constraints: const BoxConstraints(minHeight: 140),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF006578), Color(0xFF287E93)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+        AbsorbPointer(
+          absorbing: _isLoadingSet,
+          child: _buildSearchBar(),
+        ),
+        AbsorbPointer(
+          absorbing: _isLoadingSet,
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 140),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF006578), Color(0xFF287E93)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF006578).withOpacity(0.4),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF006578).withOpacity(0.4),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Stack(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Builder(builder: (ctx) {
-                      final isAllDone = EvaluationRepository.instance.evaluaciones.length >= _dynamicFormCategories.length
-                          && _dynamicFormCategories.isNotEmpty
-                          && EvaluationRepository.instance.evaluaciones
-                              .every((e) => e.estado == 'completado');
-                      return Text(
-                        isAllDone ? 'EVALUACIÓN COMPLETADA' : 'EVALUACIÓN ACTIVA',
-                        style: GoogleFonts.inter(
-                          color: isAllDone ? const Color(0xFF34C759) : const Color(0xFFAEECFF),
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 2,
-                        ),
-                      );
-                    }),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Container(
-                          width: 56,
-                          height: 56,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white.withOpacity(0.15),
-                            border: Border.all(
-                              color: Colors.white.withOpacity(0.3),
-                              width: 2,
+            child: Stack(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Builder(builder: (ctx) {
+                        final repo = EvaluationRepository.instance;
+                        final completedCount = repo.evaluaciones
+                            .where((e) => e.estado == 'completado')
+                            .length;
+                        final total = _dynamicFormCategories.length;
+                        final isAllDone = completedCount >= total && total > 0;
+                        final inProgress = completedCount > 0 && !isAllDone;
+
+                        final String label = isAllDone
+                            ? 'EVALUACIÓN COMPLETADA'
+                            : inProgress
+                                ? 'EVALUACIÓN EN PROGRESO ($completedCount/$total)'
+                                : 'EVALUACIÓN ACTIVA';
+                        final Color labelColor = isAllDone
+                            ? const Color(0xFF34C759)
+                            : inProgress
+                                ? const Color(0xFFFFD580)
+                                : const Color(0xFFAEECFF);
+
+                        return _isLoadingSet
+                            ? Text(
+                                'CARGANDO...',
+                                style: GoogleFonts.inter(
+                                  color: Colors.white.withOpacity(0.6),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 2,
+                                ),
+                              )
+                            : Text(
+                                label,
+                                style: GoogleFonts.inter(
+                                  color: labelColor,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 2,
+                                ),
+                              );
+                      }),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Container(
+                            width: 56,
+                            height: 56,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.white.withOpacity(0.15),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.3),
+                                width: 2,
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.person,
+                              color: Colors.white,
+                              size: 30,
                             ),
                           ),
-                          child: const Icon(
-                            Icons.person,
-                            color: Colors.white,
-                            size: 30,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: SizedBox(
-                            height: 85,
-                            child: PageView.builder(
-                              controller: _staffPageController,
-                              key: const PageStorageKey('staff_carousel'),
-                              itemCount: _areaStaff.length,
-                              onPageChanged: (index) => _switchToStaff(index),
-                              itemBuilder: (context, index) {
-                                final staff = _areaStaff[index];
-                                return Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      staff.name,
-                                      style: GoogleFonts.publicSans(
-                                        color: Colors.white,
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: SizedBox(
+                              height: 85,
+                              child: PageView.builder(
+                                controller: _staffPageController,
+                                key: const PageStorageKey('staff_carousel'),
+                                itemCount: _areaStaff.length,
+                                onPageChanged: (index) => _switchToStaff(index),
+                                itemBuilder: (context, index) {
+                                  final staff = _areaStaff[index];
+                                  return Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        staff.name,
+                                        style: GoogleFonts.publicSans(
+                                          color: Colors.white,
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      area.name,
-                                      style: GoogleFonts.inter(
-                                        color: Colors.white.withOpacity(0.9),
-                                        fontSize: 12,
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        area.name,
+                                        style: GoogleFonts.inter(
+                                          color: Colors.white.withOpacity(0.9),
+                                          fontSize: 12,
+                                        ),
                                       ),
-                                    ),
-                                    Text(
-                                      '• ${staff.role}',
-                                      style: GoogleFonts.inter(
-                                        color: Colors.white.withOpacity(0.7),
-                                        fontSize: 11,
+                                      Text(
+                                        '• ${staff.role}',
+                                        style: GoogleFonts.inter(
+                                          color: Colors.white.withOpacity(0.7),
+                                          fontSize: 11,
+                                        ),
                                       ),
-                                    ),
-                                  ],
-                                );
-                              },
+                                    ],
+                                  );
+                                },
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              Positioned(
-                bottom: 16,
-                right: 20,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.2),
-                      width: 1,
-                    ),
-                  ),
-                  child: Text(
-                    '${_currentStaffIndex + 1} / ${_areaStaff.length}',
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ],
+                Positioned(
+                  bottom: 16,
+                  right: 20,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.2),
+                        width: 1,
+                      ),
+                    ),
+                    child: Text(
+                      '${_currentStaffIndex + 1} / ${_areaStaff.length}',
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 12),

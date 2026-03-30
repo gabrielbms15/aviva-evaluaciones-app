@@ -1198,113 +1198,196 @@ class _NewEvaluationPageState extends State<NewEvaluationPage> {
 
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Text(
-            isEditing ? 'Editar Empleado' : 'Añadir Empleado',
-            style: GoogleFonts.publicSans(
-              fontWeight: FontWeight.bold,
-              color: AppColors.primaryBrown,
-            ),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: InputDecoration(
-                  labelText: 'Nombre Completo',
-                  filled: true,
-                  fillColor: Colors.grey.shade50,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: roleController,
-                decoration: InputDecoration(
-                  labelText: 'Rol (Ej: Médico, Enfermera)',
-                  filled: true,
-                  fillColor: Colors.grey.shade50,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                'Cancelar',
-                style: GoogleFonts.inter(
-                  color: Colors.grey.shade600,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final name = nameController.text.trim();
-                final role = roleController.text.trim();
-                if (name.isEmpty || role.isEmpty) return;
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        bool isSaving = false;
 
-                setState(() {
-                  if (isEditing) {
-                    updateStaff(staffToEdit.id, name, role);
-                    // Update current selection if editing the selected staff
-                    if (_selectedStaff?.id == staffToEdit.id) {
-                      _selectedStaff = StaffMember(
-                        id: staffToEdit.id,
-                        name: name,
-                        sedeId: staffToEdit.sedeId,
-                        areaId: staffToEdit.areaId,
-                        role: role,
-                      );
-                    }
-                  } else {
-                    addStaffToArea(
-                      _selectedSede!.id,
-                      _selectedUpss!.id,
-                      name,
-                      role,
-                    );
-                  }
-                });
-                Navigator.pop(context);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.main1,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
               ),
-              child: Text(
-                isEditing ? 'Guardar' : 'Añadir',
-                style: GoogleFonts.inter(
-                  color: Colors.white,
+              title: Text(
+                isEditing ? 'Editar Empleado' : 'Añadir Empleado',
+                style: GoogleFonts.publicSans(
                   fontWeight: FontWeight.bold,
+                  color: AppColors.primaryBrown,
                 ),
               ),
-            ),
-          ],
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: nameController,
+                    enabled: !isSaving,
+                    decoration: InputDecoration(
+                      labelText: 'Nombre Completo',
+                      filled: true,
+                      fillColor: Colors.grey.shade50,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: roleController,
+                    enabled: !isSaving,
+                    decoration: InputDecoration(
+                      labelText: 'Rol (Ej: Médico, Enfermera)',
+                      filled: true,
+                      fillColor: Colors.grey.shade50,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSaving ? null : () => Navigator.pop(dialogContext),
+                  child: Text(
+                    'Cancelar',
+                    style: GoogleFonts.inter(
+                      color: isSaving ? Colors.grey : Colors.grey.shade600,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: isSaving
+                      ? null
+                      : () async {
+                          final name = nameController.text.trim();
+                          final role = roleController.text.trim();
+                          if (name.isEmpty || role.isEmpty) return;
+
+                          setDialogState(() => isSaving = true);
+
+                          try {
+                            final supabase = Supabase.instance.client;
+
+                            if (isEditing) {
+                              // Update existing
+                              await supabase
+                                  .from('empleados')
+                                  .update({
+                                    'nombre': name,
+                                    'cargo': role,
+                                  })
+                                  .eq('id', staffToEdit.id);
+
+                              if (mounted) {
+                                setState(() {
+                                  // Update local list
+                                  final idx = _dynamicStaff.indexWhere((s) => s.id == staffToEdit.id);
+                                  if (idx != -1) {
+                                    _dynamicStaff[idx] = StaffMember(
+                                      id: staffToEdit.id,
+                                      name: name,
+                                      sedeId: staffToEdit.sedeId,
+                                      areaId: staffToEdit.areaId,
+                                      role: role,
+                                    );
+                                  }
+                                  // Update selected if needed
+                                  if (_selectedStaff?.id == staffToEdit.id) {
+                                    final updatedStaff = StaffMember(
+                                      id: staffToEdit.id,
+                                      name: name,
+                                      sedeId: staffToEdit.sedeId,
+                                      areaId: staffToEdit.areaId,
+                                      role: role,
+                                    );
+                                    _selectedStaff = updatedStaff;
+                                    _loadSetForStaff(updatedStaff);
+                                  }
+                                });
+                              }
+                            } else {
+                              // Insert new
+                              final response = await supabase
+                                  .from('empleados')
+                                  .insert({
+                                    'nombre': name,
+                                    'cargo': role,
+                                    'area_id': _selectedUpss!.id,
+                                  })
+                                  .select()
+                                  .single();
+
+                              final newStaff = StaffMember(
+                                id: response['id'].toString(),
+                                name: response['nombre'].toString(),
+                                role: response['cargo'].toString(),
+                                sedeId: _selectedSede!.id,
+                                areaId: _selectedUpss!.id,
+                              );
+
+                              if (mounted) {
+                                setState(() {
+                                  _dynamicStaff.add(newStaff);
+                                  // Auto-select the newly added staff
+                                  _loadSetForStaff(newStaff);
+                                });
+                              }
+                            }
+
+                            if (mounted) {
+                              Navigator.pop(dialogContext);
+                            }
+                          } catch (e) {
+                            debugPrint('Error saving staff: $e');
+                            if (mounted) {
+                              setDialogState(() => isSaving = false);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Error al guardar empleado: $e'),
+                                  backgroundColor: const Color(0xFFBA1A1A),
+                                ),
+                              );
+                            }
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.main1,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: isSaving
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : Text(
+                          isEditing ? 'Guardar' : 'Añadir',
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                ),
+              ],
+            );
+          },
         );
       },
     );
