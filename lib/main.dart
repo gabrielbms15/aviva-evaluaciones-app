@@ -446,7 +446,7 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
       }
 
       final formsResponse = await supabase.from('formularios').select().order('id', ascending: true);
-      final questionsResponse = await supabase.from('preguntas').select().order('orden', ascending: true);
+      final questionsResponse = await supabase.from('preguntas').select().eq('activo', true).order('orden', ascending: true);
 
       final List<FormCategory> loadedForms = [];
       for (var formRow in formsResponse) {
@@ -1201,9 +1201,10 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '$index. ${q.text}',
-            style: GoogleFonts.inter(
+          _buildFormattedQuestionText(
+            '$index.',
+            q.text,
+            GoogleFonts.inter(
               fontSize: 15,
               fontWeight: FontWeight.w500,
               color: const Color(0xFF0B1C30),
@@ -1232,9 +1233,10 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
                     child: Row(
                       children: [
                         Expanded(
-                          child: Text(
-                            '$index.${entry.key + 1}. ${entry.value.text}',
-                            style: GoogleFonts.inter(
+                          child: _buildFormattedQuestionText(
+                            '$index.${entry.key + 1}.',
+                            entry.value.text,
+                            GoogleFonts.inter(
                               fontSize: 13,
                               color: const Color(0xFF3F484B),
                             ),
@@ -1279,6 +1281,37 @@ class _AssessmentFormPageState extends State<AssessmentFormPage> {
           ],
         ],
       ),
+    );
+  }
+
+  Widget _buildFormattedQuestionText(String prefix, String text, TextStyle style) {
+    if (!text.contains('|')) {
+      return Text(
+        '$prefix $text',
+        style: style,
+      );
+    }
+
+    final parts = text.split('|');
+    final mainTitle = parts.first.trim();
+    final listItems = parts.skip(1).map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('$prefix $mainTitle', style: style),
+        const SizedBox(height: 8),
+        ...listItems.map((item) => Padding(
+              padding: const EdgeInsets.only(left: 20.0, bottom: 6.0),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('• ', style: style.copyWith(fontWeight: FontWeight.bold)),
+                  Expanded(child: Text(item, style: style.copyWith(height: 1.4))),
+                ],
+              ),
+            )),
+      ],
     );
   }
 

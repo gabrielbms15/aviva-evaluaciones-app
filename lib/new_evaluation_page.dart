@@ -4,7 +4,7 @@ import 'package:prevalencias/core/app_colors.dart';
 import 'package:prevalencias/models/models.dart';
 import 'package:prevalencias/widgets/prevalencias_app_bar.dart';
 import 'package:prevalencias/widgets/prevalencias_search_bar.dart';
-import 'package:prevalencias/data/app_data.dart';
+
 import 'package:prevalencias/data/evaluation_repository.dart';
 import 'package:prevalencias/data/evaluacion_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
